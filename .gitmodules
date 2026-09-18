@@ -1,0 +1,8 @@
+[submodule "upstream/warpo"]
+	path = upstream/warpo
+	url = https://github.com/wasm-ecosystem/warpo.git
+	branch = main
+[submodule "upstream/wasm-compiler"]
+	path = upstream/wasm-compiler
+	url = https://github.com/wasm-ecosystem/wasm-compiler.git
+	branch = develop

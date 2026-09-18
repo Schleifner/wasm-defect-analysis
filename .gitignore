@@ -1,0 +1,9 @@
+__pycache__/
+*.py[cod]
+.venv/
+/benchmarks/holdout-oracles/
+
+# Keep compact run metadata and reviews, but not bulky or sensitive raw artifacts.
+runs/*/artifacts/*
+!runs/*/artifacts/.gitkeep
+runs/*/transcript.*

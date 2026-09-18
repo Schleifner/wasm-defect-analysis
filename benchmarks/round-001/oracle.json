@@ -1,0 +1,120 @@
+{
+    "schema_version": 1,
+    "round_id": "round-001",
+    "source_report": "work.md",
+    "target": {
+        "repository": "warpo",
+        "baseline_commit": "a23624384abe63fb5c620b1e04b83157ef2a7999"
+    },
+    "label_policy": {
+        "accept": "A real, high-value defect reachable through the supported product input path.",
+        "downgrade": "A technically sound robustness improvement with little or no reachable user impact.",
+        "reject": "Expected behavior, low-value diagnostics, or a scenario outside the producer contract."
+    },
+    "expected_summary": {
+        "total": 8,
+        "accept": 2,
+        "downgrade": 1,
+        "reject": 5,
+        "high_value": 2,
+        "producer_unreachable": 4
+    },
+    "findings": [
+        {
+            "id": "R1-01",
+            "report_section": 1,
+            "title": "Uninitialized array-destructuring const crashes the parser",
+            "decision": "accept",
+            "verdict": "actionable_bug",
+            "value": "high",
+            "producer_reachable": true,
+            "technical_reasoning": "correct",
+            "recommended_action": "fix",
+            "supervision": "The parser must diagnose this valid frontend input consistently with TypeScript semantics instead of crashing. The analysis is correct and the defect is valuable."
+        },
+        {
+            "id": "R1-02",
+            "report_section": 2,
+            "title": "MergeDataSection requires non-overlapping AS data segments",
+            "decision": "downgrade",
+            "verdict": "robustness_only",
+            "value": "low",
+            "producer_reachable": false,
+            "technical_reasoning": "correct",
+            "recommended_action": "assert",
+            "supervision": "The analysis identifies a valid internal invariant, but normal AssemblyScript output does not contain overlapping segments. An assertion is sufficient; do not present this as a user-impacting compiler bug."
+        },
+        {
+            "id": "R1-03",
+            "report_section": 3,
+            "title": "Closure lowering removes a potentially trapping argument",
+            "decision": "reject",
+            "verdict": "intended_behavior",
+            "value": "none",
+            "producer_reachable": true,
+            "technical_reasoning": "observation_correct_but_intended",
+            "recommended_action": "document",
+            "supervision": "Removing this trap is intended by the compiler design, so it is not a bug. The observation points to a missing comment or design document and should be reported only as documentation debt."
+        },
+        {
+            "id": "R1-04",
+            "report_section": 4,
+            "title": "ConditionalReturn can generate a colliding nested block label",
+            "decision": "reject",
+            "verdict": "unreachable_producer_contract",
+            "value": "none",
+            "producer_reachable": false,
+            "technical_reasoning": "correct_but_out_of_scope",
+            "recommended_action": "ignore",
+            "supervision": "The collision requires hand-written WAT with a label shape Warpo does not generate. Reject it unless a supported AssemblyScript source reproducer reaches the pass."
+        },
+        {
+            "id": "R1-05",
+            "report_section": 5,
+            "title": "Object-literal accessor initialization order",
+            "decision": "accept",
+            "verdict": "actionable_bug",
+            "value": "high",
+            "producer_reachable": true,
+            "technical_reasoning": "correct",
+            "recommended_action": "fix",
+            "supervision": "Valid source code produces an incorrect value and violates source evaluation order. The analysis is correct, has a runtime oracle, and is a valuable compiler bug."
+        },
+        {
+            "id": "R1-06",
+            "report_section": 6,
+            "title": "Global array bindings emit the same unsupported-feature error twice",
+            "decision": "reject",
+            "verdict": "non_actionable_diagnostic",
+            "value": "none",
+            "producer_reachable": true,
+            "technical_reasoning": "observation_correct_but_non_actionable",
+            "recommended_action": "ignore",
+            "supervision": "The unsupported construct is already rejected and diagnostics may be emitted at multiple ownership layers. Robustness is not impaired, so duplicate logging alone is too low-value to report."
+        },
+        {
+            "id": "R1-07",
+            "report_section": 7,
+            "title": "ConstructorNewOutlining allocation operand issues",
+            "decision": "reject",
+            "verdict": "unreachable_producer_contract",
+            "value": "none",
+            "producer_reachable": false,
+            "technical_reasoning": "correct_but_out_of_scope",
+            "recommended_action": "ignore",
+            "supervision": "AssemblyScript fixes class id and allocation size for a given constructor and does not emit the proposed caller-local allocation form. Reject synthetic IR that violates those frontend invariants."
+        },
+        {
+            "id": "R1-08",
+            "report_section": 8,
+            "title": "Immutable-load folding uses the wrong byte for overlapping data segments",
+            "decision": "reject",
+            "verdict": "unreachable_producer_contract",
+            "value": "none",
+            "producer_reachable": false,
+            "technical_reasoning": "correct_but_out_of_scope",
+            "recommended_action": "ignore",
+            "supervision": "Warpo does not generate overlapping active data segments. A hand-written WAT counterexample is outside this pass's producer contract and is not a Warpo defect."
+        }
+    ]
+}
