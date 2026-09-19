@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Create an immutable envelope for one AI defect-discovery experiment.
 
-The script snapshots the selected prompt and records the model configuration,
+The script snapshots the repository's discovery prompt and records the model configuration,
 scope, and exact compiler submodule commits so the run can be reproduced.
 """
 
@@ -23,6 +23,7 @@ TARGET_PATHS = {
     "warpo": Path("upstream/warpo"),
     "wasm-compiler": Path("upstream/wasm-compiler"),
 }
+PROMPT_PATH = Path("prompts/defect-discovery.md")
 RUN_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
 
@@ -69,7 +70,6 @@ def parse_args() -> argparse.Namespace:
         choices=("warpo", "wasm-compiler", "pipeline", "both"),
         default="both",
     )
-    parser.add_argument("--prompt", type=Path, default=Path("prompts/v2-value-filtered.md"))
     parser.add_argument("--temperature", type=float)
     parser.add_argument("--seed", type=int)
     parser.add_argument("--max-tokens", type=int)
@@ -93,7 +93,7 @@ def main() -> int:
         print("error: max-tokens must be positive", file=sys.stderr)
         return 2
 
-    prompt_path = args.prompt if args.prompt.is_absolute() else repo_root / args.prompt
+    prompt_path = repo_root / PROMPT_PATH
     if not prompt_path.is_file():
         print(f"error: prompt does not exist: {prompt_path}", file=sys.stderr)
         return 2
@@ -181,6 +181,7 @@ the AI rejects. Use one independently minimized source artifact per candidate. W
 - Negative/control case:
 - AI recommendation: `accept` / `downgrade` / `defer`
 - AI value: `high` / `low` / `unknown`
+- AI value rationale:
 
 ## Human Review
 
@@ -200,7 +201,12 @@ the AI rejects. Use one independently minimized source artifact per candidate. W
 - AI value ratings:
 - Areas searched with no findings:
 - Unresolved checks and environmental blockers:
-- Suggested prompt change for the next round:
+- Suggested prompt or infrastructure change for the next round:
+
+## 中文分析过程记录
+
+<!-- 从 discovery 开始就在这里按实际顺序追加公开分析日志：detect 方向及选择原因、
+可证伪假设、关键检查结果、被否定的方向和转向。完成时保留原始条目，不要重写成摘要。 -->
 """,
         encoding="utf-8",
     )

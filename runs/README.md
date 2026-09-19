@@ -14,6 +14,8 @@ runs/<run-id>/
 
 Never reuse a run ID or edit old prompt snapshots. If execution is retried, create a new run ID and reference the earlier run in the report or scope text.
 
+The repository has one mutable prompt source, `prompts/defect-discovery.md`. Each run's copied `prompt.md` and manifest hash preserve the exact revision used, so prompt iteration never rewrites historical experiment inputs.
+
 Writing “no finding” is preferable to manufacturing weak candidates.
 
-The AI writes candidate findings and the human writes the final decision in the same `report.md`. No separate machine validation or scoring step is required.
+The AI writes candidate findings and a contemporaneous public Chinese analysis log in the same `report.md`; the human writes the final decision there without the AI editing those fields. The log preserves explored directions, hypotheses, rejected leads, and pivots in their original order. No separate machine validation or scoring step is required.

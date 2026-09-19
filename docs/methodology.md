@@ -8,7 +8,7 @@ The central hypothesis after rounds 001 and 002 is:
 
 > Requiring supported-input reachability, an executable semantic oracle, candidate-specific reproducers, and an explicit value judgment will preserve real parser and miscompilation findings while suppressing synthetic IR, intended-behavior reports, and low-value boundary distractions.
 
-This is falsifiable. Keep scope and target commits fixed, run prompt variants, review them blind to prompt identity when practical, and compare precision, yield, unreachable false positives, and holdout recall.
+This is falsifiable. Keep scope and target commits fixed, run prompt revisions, review them blind to revision identity when practical, and compare precision, yield, unreachable false positives, and holdout recall.
 
 ## Pipeline
 
@@ -25,6 +25,8 @@ flowchart LR
 ```
 
 Discovery and judgment are visible in the same `report.md`: the AI fills the candidate sections and the human fills the marked judgment sections. This repository does not require a machine scoring layer; the human decision is the oracle.
+
+Each discovery report also contains a public Chinese analysis log written as the work proceeds. It preserves the order of explored directions, hypotheses, checks, rejected leads, and pivots, including why each direction was selected. The final report leaves this contemporaneous log in place rather than reconstructing a polished audit after the run.
 
 The Python helper does not invoke a model. It creates an experiment envelope only. Model execution is performed manually through VS Code Copilot Agent mode, which reads the run's prompt and manifest, investigates the pinned checkout with its normal tools, and writes the Markdown report.
 
@@ -69,15 +71,15 @@ The AI omits rejected hypotheses from Candidate Findings. The human may still re
 
 Value is independent of decision. Rate ordinary valid-input crashes, miscompilations, invalid output, and clear evaluation-semantic failures as high value. Rate issues requiring extreme boundary values, conspicuously erroneous input, or narrow robustness conditions as low value. A potentially severe issue without decisive contract evidence remains deferred with unknown value.
 
-## Iterating Prompts Without Leakage
+## Iterating The Prompt Without Leakage
 
-1. Freeze scope, target commits, model settings, budget, and prompt before a run.
+1. Freeze scope, target commits, model settings, budget, and a snapshot of the current prompt before a run.
 2. Use stable IDs for reported candidates. Omit AI-rejected hypotheses and summarize unsuccessful search only at the area level.
 3. Have a human review evidence rather than model rhetoric.
 4. Diagnose errors by category: missed reachability check, misunderstood design, weak oracle, duplicate, or search miss.
-5. Change one prompt mechanism at a time when possible.
+5. Change one mechanism in `prompts/defect-discovery.md` at a time when possible.
 6. Re-run known training cases only as a regression check.
-7. Select prompts on a frozen validation set.
+7. Select prompt revisions on a frozen validation set, identifying each revision by its run snapshot and hash.
 8. Open the holdout only after choosing the prompt. Do not paste holdout labels back into the prompt until that evaluation cycle is closed.
 
 Use multiple seeds or repeated runs when model sampling is nondeterministic. Report the distribution, not only the best run. Keep token/time budgets equal when comparing strategies.

@@ -5,7 +5,7 @@ This directory preserves reviewed labels independently from model output. It is 
 ## Splits
 
 - `training`: labels may be summarized in prompts. Use only to check that known lessons are retained.
-- `validation`: frozen tasks used to select between prompt versions. Keep labels out of prompts.
+- `validation`: frozen tasks used to select between revisions of the discovery prompt. Keep labels out of the prompt.
 - `holdout`: opened only after selecting a prompt. Use for the final generalization estimate.
 - `exploration`: new discovery scope without exhaustive ground truth. Precision and yield are valid after review; recall is not.
 
@@ -16,7 +16,7 @@ Each completed round contains only:
 
 `round-001` is a **training set**, not an unbiased evaluation. Its eight reviewed judgments are stored in [round-001](round-001).
 
-`round-002` is also a **training set** because its reviewed lessons are included in the latest prompt. Its five reviewed judgments are stored in [round-002](round-002).
+`round-002` is also a **training set** because its reviewed lessons are included in the current prompt. Its five reviewed judgments are stored in [round-002](round-002).
 
 ## Adding A Round
 
