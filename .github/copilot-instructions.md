@@ -8,6 +8,7 @@ This repository evaluates AI-assisted defect discovery in the pinned compiler su
 2. Stay inside the run's declared target, scope, and exact submodule commits.
 3. Search existing run candidates and supervision labels for duplicates, but do not expose validation or holdout oracle labels to the discovery agent.
 4. Do not modify either upstream submodule during discovery.
+5. For Warpo setup, compilation, execution, or candidate reproduction, read `.github/skills/warpo-defect-workflow/SKILL.md` and use its npm and Node.js workflow.
 
 ## Candidate Requirements
 
@@ -33,7 +34,11 @@ Prioritize ordinary valid programs with surprising compiler behavior. Deprioriti
 
 ## Human Supervision
 
-The human reads `report.md` and writes the final decision in its human judgment section. Do not add a machine validation or scoring step. Do not rewrite an old report after review; create the next version and a new run. Treat `supervision/round-001` as training data only, because its labels are already present in the prompt.
+The human reads `report.md` and writes the final decision in its human judgment section. Do not add a machine validation or scoring step. Do not rewrite an old report after review; update the single source prompt only after preserving the current run snapshot, then create a new run. Treat `supervision/round-001` as training data only, because its labels are already present in the prompt.
+
+## Public Chinese Analysis Log
+
+During a discovery run, maintain `## 中文分析过程记录` in the report as a public, contemporaneous log. Write concise Chinese entries as the analysis proceeds, preserving the actual order of explored directions, hypotheses, checks, results, rejected leads, and pivots. Explain why each detection direction was selected. At the end, leave these entries in their original order instead of rewriting them into a polished audit or summary. Leave the human review section untouched.
 
 ## Upstream Changes
 

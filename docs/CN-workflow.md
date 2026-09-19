@@ -6,12 +6,12 @@
 
 ```mermaid
 flowchart TD
-    A[选择目标、范围和 Prompt] --> B[new_run.py 创建 Run]
+  A[选择目标和范围] --> B[new_run.py 快照当前 Prompt 并创建 Run]
     B --> C[AI 在固定提交上分析]
     C --> D[填写 report.md 和 artifacts]
     D --> E[人类直接阅读和判断]
     E --> F[总结误报、漏报和证据缺口]
-    F --> G[新建 Prompt 版本和下一次 Run]
+    F --> G[更新唯一 Prompt 并创建下一次 Run]
     E --> H[人工结论进入监督数据集]
 ```
 
@@ -69,11 +69,11 @@ runs/run-002-warpo-parser/
 ```
 
 - `manifest.json` 固定模型、参数、范围、Prompt 哈希和上游提交。
-- `prompt.md` 是本轮使用的 Prompt 快照。
+- `prompt.md` 是唯一源 Prompt `prompts/defect-discovery.md` 在本轮创建时的快照。
 - `report.md` 是 AI 输出和人工评价的共同载体。
 - `artifacts/` 保存最小复现输入和精简日志。
 
-Run 生成器默认使用当前最新版 Prompt。只有在回放或比较某个不可变 Prompt 版本时，才需要显式传入 `--prompt`。
+仓库只维护 `prompts/defect-discovery.md` 这一个源 Prompt。Run 生成器总是快照它的当前内容，并在 manifest 中记录 SHA-256。旧 Run 使用各自目录中的 `prompt.md` 保留当时内容，因此后续迭代源 Prompt 不会改变历史实验。
 
 Run ID 不复用。修改 Prompt、模型配置、范围或重试实验时都创建新 Run。
 
@@ -102,6 +102,56 @@ AI recommendation 之外还要给出独立的价值判断：
 Warpo 内部 pass 的手写 WAT/IR 不自动代表产品缺陷，必须证明 Warpo frontend 能产生该状态。wasm-compiler 的公开输入是受支持的合法 Wasm，因此由标准工具组装的合法 WAT 可以作为输入。
 
 如果没有发现问题，AI 应明确写“未发现”；如果证据不足，写 `defer`，不要猜测。
+
+### 3.1 Warpo 固定构建与执行入口
+
+分析 Warpo 时先读取 `.github/skills/warpo-defect-workflow/SKILL.md`，不要每轮重新推导构建和 Node.js 运行方式。Node.js 版本必须不低于 22.4。从仓库根目录执行：
+
+```bash
+git submodule update --init upstream/warpo
+cd upstream/warpo
+npm ci
+npm run build
+cd ../..
+```
+
+`npm run build` 是稳定入口，会生成 `upstream/warpo/dist/warpo.js` 和 `upstream/warpo/build/warpo/warpo_asc`。CMake 是 npm 脚本的内部实现；除非正在诊断 `npm run build` 本身的失败，否则不要手工挑选 CMake target。
+
+每个候选使用独立的最小 AS 源文件，然后从仓库根目录编译和执行：
+
+```bash
+node upstream/warpo/dist/warpo.js \
+  runs/<run-id>/artifacts/C-001.ts \
+  -o runs/<run-id>/artifacts/C-001.wasm \
+  --exportRuntime
+node scripts/run_warpo_wasm.mjs \
+  runs/<run-id>/artifacts/C-001.wasm \
+  exportedFunction \
+  42 7n
+```
+
+通用 runner 提供标准的 `env.abort`，接受普通数值参数，并用 `n` 后缀表示 `i64`。它会明确拒绝未知 import；需要 WASI 或项目特定 import 时，在候选目录中创建专用 runner，不要向通用 runner 静默加入无语义的 stub。runner 只负责稳定执行，不是独立 oracle。
+
+可用下面的命令检查整条基础设施链路，预期输出为 `add=42`：
+
+```bash
+node upstream/warpo/dist/warpo.js \
+  .github/skills/warpo-defect-workflow/assets/smoke.ts \
+  -o /tmp/warpo-defect-workflow-smoke.wasm \
+  --exportRuntime
+node scripts/run_warpo_wasm.mjs /tmp/warpo-defect-workflow-smoke.wasm add 20 22
+```
+
+### 3.2 中文分析过程记录
+
+从一轮 discovery 开始时就在 `report.md` 的 `## 中文分析过程记录` 下持续追加公开的中文分析日志，不要等结束后再概括。按实际发生顺序简要记下：
+
+- 当前选择的 detect 方向以及选择原因；
+- 提出的可证伪假设和准备做的关键检查；
+- 检查得到的关键事实，以及该事实如何让方向继续、停止或转向；
+- 被否定的假设和未形成候选的方向。
+
+完成时保留这些条目的原始顺序和表述，不要再改写成经过整理的审计或摘要。Candidate Findings 仍只收录通过 admission gate 的候选；过程日志可以保留失败方向。不要改写留给人的 `Human Review` 内容。
 
 ## 4. 人类阅读和评价
 
@@ -138,9 +188,9 @@ runs/run-002-warpo-parser/report.md
 
 同时检查报告是否把已否定的假设当作候选输出、是否把多个 bug 合并进同一个复现文件，以及是否把低价值边界问题误标成高价值。
 
-在 `prompts/` 中创建新文件，例如 `v2-*.md`，不要覆盖旧 Prompt。下一轮使用新 Run ID，并尽量保持目标范围、模型预算和采样参数一致。
+直接更新唯一的 `prompts/defect-discovery.md`，不要再创建 `v2-*`、`v3-*` 等并行文件。修改前应确保上一轮 Run 已经创建并保存其 `prompt.md` 快照；修改后使用新 Run ID。比较前后效果时，以各 Run 的 prompt SHA-256 和快照区分 revision，并尽量保持目标范围、模型预算和采样参数一致。
 
-`supervision/round-001` 已写入 Prompt，因此只能作为训练/回归监督。选择 Prompt 要使用未泄漏标签的 validation；最终泛化结果使用 holdout。
+`supervision/round-001` 已写入 Prompt，因此只能作为训练/回归监督。选择 Prompt revision 要使用未泄漏标签的 validation；最终泛化结果使用 holdout。
 
 ## 6. 写入监督数据集或修复
 
