@@ -1,7 +1,7 @@
 {
     "schema_version": 1,
     "round_id": "round-001",
-    "source_report": "work.md",
+    "source_review": "review.md",
     "target": {
         "repository": "warpo",
         "baseline_commit": "a23624384abe63fb5c620b1e04b83157ef2a7999"

@@ -69,7 +69,7 @@ def parse_args() -> argparse.Namespace:
         choices=("warpo", "wasm-compiler", "pipeline", "both"),
         default="both",
     )
-    parser.add_argument("--prompt", type=Path, default=Path("prompts/v1-contract-first.md"))
+    parser.add_argument("--prompt", type=Path, default=Path("prompts/v2-value-filtered.md"))
     parser.add_argument("--temperature", type=float)
     parser.add_argument("--seed", type=int)
     parser.add_argument("--max-tokens", type=int)
@@ -166,20 +166,21 @@ def main() -> int:
 
 ## Candidate Findings
 
-<!-- Use the format below for each candidate. Write "No findings" when appropriate. -->
+<!-- Include only reproduced accept, downgrade, or defer candidates. Omit hypotheses
+the AI rejects. Use one independently minimized source artifact per candidate. Write
+"No findings" when no candidate passes the report admission gate. -->
 
 ### C-001: <Short title>
 
 - Location:
 - Hypothesis:
-- Producer reachability: `yes` / `no` / `unknown`
 - Root cause:
 - Impact:
-- Reproducer input:
-- Baseline command and result:
+- Reproduction: `<artifact>`; `<exact command>`; exit `<code>`; `<focused output>`
 - Independent oracle:
 - Negative/control case:
-- AI recommendation: `accept` / `downgrade` / `reject` / `defer`
+- AI recommendation: `accept` / `downgrade` / `defer`
+- AI value: `high` / `low` / `unknown`
 
 ## Human Review
 
@@ -194,11 +195,11 @@ def main() -> int:
 
 ## Summary
 
-- Accepted:
-- Downgraded:
-- Rejected:
-- Deferred:
+- Reported candidates:
+- AI recommendations:
+- AI value ratings:
 - Areas searched with no findings:
+- Unresolved checks and environmental blockers:
 - Suggested prompt change for the next round:
 """,
         encoding="utf-8",

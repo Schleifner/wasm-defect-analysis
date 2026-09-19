@@ -1,9 +1,11 @@
 __pycache__/
 *.py[cod]
 .venv/
-/benchmarks/holdout-oracles/
+/.pytest_cache/
+/supervision/holdout-oracles/
 
-# Keep compact run metadata and reviews, but not bulky or sensitive raw artifacts.
-runs/*/artifacts/*
-!runs/*/artifacts/.gitkeep
-runs/*/transcript.*
+build/
+
+# Mainline keeps only each run's manifest, prompt snapshot, and reviewed report.
+/runs/*/artifacts/
+/runs/*/transcript.*

@@ -12,7 +12,7 @@ flowchart TD
     D --> E[人类直接阅读和判断]
     E --> F[总结误报、漏报和证据缺口]
     F --> G[新建 Prompt 版本和下一次 Run]
-    E --> H[确认的缺陷进入永久 Benchmark]
+    E --> H[人工结论进入监督数据集]
 ```
 
 工作流只有两个核心产物：
@@ -73,6 +73,8 @@ runs/run-002-warpo-parser/
 - `report.md` 是 AI 输出和人工评价的共同载体。
 - `artifacts/` 保存最小复现输入和精简日志。
 
+Run 生成器默认使用当前最新版 Prompt。只有在回放或比较某个不可变 Prompt 版本时，才需要显式传入 `--prompt`。
+
 Run ID 不复用。修改 Prompt、模型配置、范围或重试实验时都创建新 Run。
 
 ## 3. AI 分析
@@ -86,6 +88,16 @@ AI 直接填写 `report.md`，每个候选至少回答：
 3. 在固定基线上执行了什么命令，观察到了什么？
 4. 独立 oracle 是什么？
 5. 邻近的反例或控制用例是否通过？
+
+生产者可达性仍然是候选进入报告前的硬性条件，但不再作为单独字段重复填写。AI 已经判断为 `reject` 的假设不写进 Candidate Findings；只有复现成功的 `accept`、`downgrade`，以及确实缺少决定性证据的 `defer` 可以保留给人工复核。
+
+每个候选必须使用独立、最小化的源文件，不要把多个 bug 放进一个 AS 文件或多导出 harness。复现输入、精确命令、退出码和关键输出合并写在同一个“Reproduction”条目中。
+
+AI recommendation 之外还要给出独立的价值判断：
+
+- `high`：普通、语义正确的输入发生崩溃、误编译、无效输出或明确的求值语义错误；
+- `low`：主要依赖极端边界值、明显错误或不合理的用户代码、狭窄的健壮性问题；
+- `unknown`：仅用于证据不足的 `defer`。
 
 Warpo 内部 pass 的手写 WAT/IR 不自动代表产品缺陷，必须证明 Warpo frontend 能产生该状态。wasm-compiler 的公开输入是受支持的合法 Wasm，因此由标准工具组装的合法 WAT 可以作为输入。
 
@@ -103,7 +115,6 @@ runs/run-002-warpo-parser/report.md
 
 - 最终结论：`accept` / `downgrade` / `reject` / `defer`；
 - 价值：`high` / `low` / `none` / `unknown`；
-- 生产者可达性：`yes` / `no` / `unknown`；
 - 评价和关键依据。
 
 重点检查：
@@ -125,13 +136,17 @@ runs/run-002-warpo-parser/report.md
 - 复现或 oracle 不充分的地方；
 - 重复发现和搜索遗漏。
 
+同时检查报告是否把已否定的假设当作候选输出、是否把多个 bug 合并进同一个复现文件，以及是否把低价值边界问题误标成高价值。
+
 在 `prompts/` 中创建新文件，例如 `v2-*.md`，不要覆盖旧 Prompt。下一轮使用新 Run ID，并尽量保持目标范围、模型预算和采样参数一致。
 
-`benchmarks/round-001` 已写入 Prompt，因此只能作为训练/回归监督。选择 Prompt 要使用未泄漏标签的 validation；最终泛化结果使用 holdout。
+`supervision/round-001` 已写入 Prompt，因此只能作为训练/回归监督。选择 Prompt 要使用未泄漏标签的 validation；最终泛化结果使用 holdout。
 
-## 6. 提升为永久 Benchmark 或修复
+## 6. 写入监督数据集或修复
 
-人工确认的发现只有在以下条件满足后才进入永久 benchmark：
+一轮人工审阅完成后，在 `supervision/<round-id>/` 中只保存 `review.md` 和 `oracle.json`。前者记录人类可读的判断和流程反馈，后者记录供 Prompt 迭代与评估使用的结构化标签。复现源码、编译产物和运行日志不复制进监督目录。
+
+人工确认的发现只有在以下条件满足后才进入监督数据集：
 
 1. 在记录的基线提交上稳定复现；
 2. 已证明支持输入可达；

@@ -11,21 +11,15 @@
 
 State the predicted externally observable failure in one falsifiable sentence.
 
-## Producer Reachability
-
-- Status: `yes` / `no` / `unknown`
-- Evidence:
-- Control case:
-
 ## Design Contract
 
 - Expected behavior:
 - Source: specification / documentation / test / code / history
 - Conflicting evidence checked:
 
-## Minimal Reproducer
+## Reproduction
 
-- Artifact:
+- Candidate-specific artifact:
 - Baseline command:
 - Exit code:
 - Focused output:
@@ -39,6 +33,16 @@ State the predicted externally observable failure in one falsifiable sentence.
 ## Root Cause
 
 Name the deciding code path and explain the mechanism.
+
+## Impact
+
+Describe the externally observable consequence and the kind of input required.
+
+## AI Assessment
+
+- Recommendation: `accept` / `downgrade` / `defer`
+- Value: `high` / `low` / `unknown`
+- Rationale:
 
 ## Human Review
 

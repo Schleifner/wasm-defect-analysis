@@ -9,7 +9,7 @@ runs/<run-id>/
   manifest.json      Prompt hash, model, scope, and exact upstream commits
   prompt.md          Prompt snapshot used for this run
   report.md          AI's formatted report and the human's final judgment
-  artifacts/         Minimal reproducers and focused logs (large raw data ignored)
+  artifacts/         Local reproducers and focused logs (ignored by Git)
 ```
 
 Never reuse a run ID or edit old prompt snapshots. If execution is retried, create a new run ID and reference the earlier run in the report or scope text.

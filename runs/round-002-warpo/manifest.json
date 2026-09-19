@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "run_id": "round-002-warpo",
+  "created_at": "2026-09-18T12:25:56.748426+00:00",
+  "status": "completed",
+  "prompt": {
+    "source": "prompts/v1-contract-first.md",
+    "snapshot": "prompt.md",
+    "version": "v1-contract-first",
+    "sha256": "c1d7c3bada084ac0c14d6db08e32229f9cae71d2db7bd30e0029445c781461d0"
+  },
+  "model": "GitHub Copilot",
+  "execution": {
+    "agent": "GitHub Copilot Agent",
+    "temperature": 0.0,
+    "seed": null,
+    "max_tokens": null,
+    "budget": "Until three accepted candidates are reproduced or the scoped search is exhausted"
+  },
+  "scope": "Warpo frontend, semantic lowering, code generation, and source-reachable optimization paths; identify three high-value defects excluding round-001 candidates",
+  "target_mode": "warpo",
+  "targets": {
+    "warpo": {
+      "path": "upstream/warpo",
+      "remote": "https://github.com/wasm-ecosystem/warpo.git",
+      "declared_branch": "main",
+      "commit": "8466a752edccaedb5de8ae3246e139a7fb71a51d"
+    }
+  }
+}

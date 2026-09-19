@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "round_id": "round-002-warpo",
+  "split": "training",
+  "source_run": "runs/round-002-warpo",
+  "source_review": "review.md",
+  "target": {
+    "repository": "warpo",
+    "baseline_commit": "8466a752edccaedb5de8ae3246e139a7fb71a51d"
+  },
+  "label_policy": {
+    "accept": "A supported input reproducibly exposes an actionable defect; value is rated separately.",
+    "downgrade": "A reproduced robustness or documentation concern does not warrant treatment as a user-visible compiler bug.",
+    "reject": "The hypothesis is intended, unsupported, producer-impossible, falsified, duplicate, or otherwise non-actionable.",
+    "defer": "The behavior is reproduced but decisive contract or oracle evidence remains unresolved."
+  },
+  "expected_summary": {
+    "investigated_total": 5,
+    "reportable_under_v2": 3,
+    "accept": 3,
+    "downgrade": 0,
+    "reject": 2,
+    "defer": 0,
+    "high_value": 1,
+    "low_value": 2,
+    "falsified": 2
+  },
+  "findings": [
+    {
+      "id": "R2-001",
+      "report_candidate": "C-001",
+      "title": "Postfix property update evaluates its receiver twice",
+      "decision": "accept",
+      "verdict": "actionable_bug",
+      "value": "high",
+      "producer_reachable": true,
+      "technical_reasoning": "correct",
+      "recommended_action": "fix",
+      "baseline_observed": "postfixReceiverCount=21",
+      "expected": "postfixReceiverCount=11",
+      "supervision": "Reward this discovery pattern. Ordinary valid source must evaluate the postfix property receiver once, but the baseline reads the first object and writes the second after calling the receiver twice."
+    },
+    {
+      "id": "R2-002",
+      "report_candidate": "C-002",
+      "title": "TypedArray.copyWithin traps on an empty source range",
+      "decision": "accept",
+      "verdict": "actionable_bug",
+      "value": "low",
+      "producer_reachable": true,
+      "technical_reasoning": "correct",
+      "recommended_action": "fix",
+      "baseline_observed": "reproduce=TRAP:RuntimeError:memory access out of bounds",
+      "expected": "reproduce=12345",
+      "supervision": "The empty range should be a no-op, so this is a real standard-library defect. Keep its value low because the reversed range resembles conspicuously erroneous user input and is a less useful search target than an ordinary-program miscompile."
+    },
+    {
+      "id": "R2-003",
+      "report_candidate": "C-003",
+      "title": "Typed-array bounds checks are bypassed by signed overflow",
+      "decision": "accept",
+      "verdict": "actionable_bug",
+      "value": "low",
+      "producer_reachable": true,
+      "technical_reasoning": "correct",
+      "recommended_action": "fix",
+      "baseline_observed": "reproduce=-4",
+      "expected": "RangeError",
+      "supervision": "The overflowing public API argument bypasses the promised bounds check and creates an invalid view. Accept the defect but rate it low value because it requires an impossible-sized view request at an extreme integer boundary."
+    },
+    {
+      "id": "R2-004",
+      "report_candidate": "C-004",
+      "title": "Plain property assignment reverses receiver and RHS evaluation",
+      "decision": "reject",
+      "verdict": "falsified_hypothesis",
+      "value": "none",
+      "producer_reachable": true,
+      "technical_reasoning": "falsified_by_execution",
+      "recommended_action": "omit",
+      "supervision": "Direct execution produced receiver-before-RHS order. Omit hypotheses that fail their runtime oracle instead of presenting them as Candidate Findings."
+    },
+    {
+      "id": "R2-005",
+      "report_candidate": "C-005",
+      "title": "Uint16Array.reverse uses a mis-scaled front address",
+      "decision": "reject",
+      "verdict": "falsified_hypothesis",
+      "value": "none",
+      "producer_reachable": true,
+      "technical_reasoning": "falsified_by_source_and_execution",
+      "recommended_action": "omit",
+      "supervision": "The current implementation already scales the address correctly and direct execution returns the expected reversed values. Omit the falsified hypothesis."
+    }
+  ]
+}
