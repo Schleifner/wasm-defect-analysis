@@ -93,11 +93,15 @@ AI 直接填写 `report.md`，每个候选至少回答：
 
 每个候选必须使用独立、最小化的源文件，不要把多个 bug 放进一个 AS 文件或多导出 harness。复现输入、精确命令、退出码和关键输出合并写在同一个“Reproduction”条目中。
 
+对于不直观的状态型缺陷，报告要说明原实现保存了什么状态、哪个状态转移使它失效，以及失效状态如何产生实际错误。复现源码中增加简短注释，标出触发该转移的操作和预期观察，不要逐行解释显然的代码。
+
 AI recommendation 之外还要给出独立的价值判断：
 
 - `high`：普通、语义正确的输入发生崩溃、误编译、无效输出或明确的求值语义错误；
-- `low`：主要依赖极端边界值、明显错误或不合理的用户代码、狭窄的健壮性问题；
+- `low`：主要依赖极端边界值、明显错误或不合理的用户代码、缺少明确本地契约或现实工作流的不常见 API 用法、狭窄的健壮性问题；
 - `unknown`：仅用于证据不足的 `defer`。
+
+外部差异测试可以支持正确性 oracle，但差异本身不代表高价值。价值判断还要结合本地文档或实现不变量、现实使用方式和实际影响。
 
 Warpo 内部 pass 的手写 WAT/IR 不自动代表产品缺陷，必须证明 Warpo frontend 能产生该状态。wasm-compiler 的公开输入是受支持的合法 Wasm，因此由标准工具组装的合法 WAT 可以作为输入。
 
@@ -165,7 +169,7 @@ runs/run-002-warpo-parser/report.md
 
 - 最终结论：`accept` / `downgrade` / `reject` / `defer`；
 - 价值：`high` / `low` / `none` / `unknown`；
-- 评价和关键依据。
+- `Review`：评价和依据。
 
 重点检查：
 
@@ -190,7 +194,7 @@ runs/run-002-warpo-parser/report.md
 
 直接更新唯一的 `prompts/defect-discovery.md`，不要再创建 `v2-*`、`v3-*` 等并行文件。修改前应确保上一轮 Run 已经创建并保存其 `prompt.md` 快照；修改后使用新 Run ID。比较前后效果时，以各 Run 的 prompt SHA-256 和快照区分 revision，并尽量保持目标范围、模型预算和采样参数一致。
 
-`supervision/round-001` 已写入 Prompt，因此只能作为训练/回归监督。选择 Prompt revision 要使用未泄漏标签的 validation；最终泛化结果使用 holdout。
+当前 Prompt 引用的 `supervision/` 轮次只能作为训练/回归监督。选择 Prompt revision 要使用未泄漏标签的 validation；最终泛化结果使用 holdout。
 
 ## 6. 写入监督数据集或修复
 

@@ -34,10 +34,10 @@ Decision and value are independent:
 Rate each reported candidate separately:
 
 - **High value:** ordinary semantically valid input crashes, miscompiles, emits invalid output, violates clear evaluation semantics, or breaks a realistic workflow.
-- **Low value:** impact primarily requires extreme boundary values, conspicuously erroneous or nonsensical user code, narrow robustness behavior, or low-impact diagnostics.
+- **Low value:** impact primarily requires extreme boundary values, conspicuously erroneous or nonsensical user code, uncommon API behavior without a clear local contract or realistic workflow, narrow robustness behavior, or low-impact diagnostics.
 - **Unknown value:** use only with `defer` when missing evidence prevents classification.
 
-Prioritize high-value findings. An accepted bug can still be low value.
+Prioritize high-value findings. An accepted bug can still be low value. A reference-language mismatch can establish expected behavior when the contract applies, but it does not by itself establish practical value. Prefer local invariants, documentation, existing test intent, and realistic workflows when rating value.
 
 ## Decision Examples From Round 001
 
@@ -53,5 +53,11 @@ Prioritize high-value findings. An accepted bug can still be low value.
 - **Accept, high value:** an ordinary postfix property update evaluates a side-effecting receiver twice and can read one object while writing another.
 - **Accept, low value:** typed-array range or overflow behavior requires reversed ranges, impossible-sized views, extreme offsets, or similarly conspicuous misuse.
 - **Omit:** hypotheses disproved by direct baseline execution, even when the initially suspected code looked unsafe.
+
+## Decision Examples From Round 003
+
+- **Accept, high value:** an ordinary string replacement reaches a growth path whose new capacity is still smaller than the immediately required write. The local capacity invariant and baseline abort establish the defect without relying on a JavaScript comparison.
+- **Accept, low value:** an empty string search with an explicit start differs from JavaScript semantics, but the uncommon usage has no explicit local documentation or demonstrated realistic workflow. The defect is real; its value was overrated.
+- **Accept, high value:** map rehash compacts live entries while an active iterator retains a physical offset, causing it to skip an entry. For this kind of non-obvious runtime bug, explain the stored state, invalidating transition, and resulting behavior explicitly.
 
 When evidence is incomplete, use `defer`. Confidence language never substitutes for a command result.

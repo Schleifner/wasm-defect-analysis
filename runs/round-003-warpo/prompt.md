@@ -69,10 +69,8 @@ For each code area:
 6. Reproduce on the unmodified pinned baseline before promoting the hypothesis. Capture the exact command, exit code, and focused output.
 7. Minimize the reproducer into a candidate-specific source file. Never combine multiple bugs into one AssemblyScript test file.
 8. Run a nearby negative or control case that challenges the hypothesis.
-9. For a non-obvious stateful failure, explain the mechanism as a sequence: what state the old implementation stores, which transition invalidates it, and how the stale or inconsistent state causes the observed result.
-10. Add concise comments to a non-obvious reproducer that identify the triggering transition and expected observation. Do not narrate self-explanatory lines.
-11. Assign both a technical recommendation and a value rating, with a short rationale for the value rating.
-12. Omit hypotheses that the AI concludes should be rejected. A reproduced but genuinely uncertain candidate may be reported as `defer` for human judgment.
+9. Assign both a technical recommendation and a value rating, with a short rationale for the value rating.
+10. Omit hypotheses that the AI concludes should be rejected. A reproduced but genuinely uncertain candidate may be reported as `defer` for human judgment.
 
 Never edit upstream code during discovery. A patch belongs only after baseline evidence is captured.
 
@@ -106,10 +104,10 @@ Do not emit `reject` candidates. Reject them during analysis and leave them out 
 Rate value as:
 
 - `high`: ordinary, semantically valid source unexpectedly crashes, miscompiles, emits invalid output, violates clear evaluation semantics, or breaks a realistic workflow.
-- `low`: the issue primarily involves extreme boundary values, obviously erroneous or nonsensical user code, uncommon API behavior without a clear local contract or realistic workflow, narrow robustness behavior, or diagnostic quality with limited practical impact.
+- `low`: the issue primarily involves extreme boundary values, obviously erroneous or nonsensical user code, narrow robustness behavior, or diagnostic quality with limited practical impact.
 - `unknown`: use only with `defer` when the missing evidence prevents a value judgment.
 
-Prioritize high-value candidates. Do not inflate high-value yield with accepted low-value boundary or robustness bugs. A differential mismatch establishes expected behavior only when the reference contract applies; it does not by itself establish high user value. Prefer a local specification, documented invariant, implementation precondition, existing test intent, or realistic workflow when assigning value.
+Prioritize high-value candidates. Do not inflate high-value yield with accepted low-value boundary or robustness bugs.
 
 # Supervision From Human Reviews
 
@@ -120,8 +118,6 @@ Treat these judgments as training signal. Learn the decision rule, not the filen
 - Valid source crashes a parser where the language requires a diagnostic.
 - Valid object-literal source evaluates accessors in the wrong order and returns incorrect runtime values.
 - An ordinary postfix property update evaluates a side-effecting receiver twice, so it can read one object and write another.
-- A string growth path allocates less capacity than its immediately required write, and ordinary input reaches the resulting failure. The local capacity invariant proves the defect without depending on cross-language comparison.
-- A live map iterator stores a physical entry offset that becomes stale when rehash compacts entries, causing a surviving entry to be skipped. Reward this non-obvious runtime-state pattern and explain the invalidation sequence precisely.
 
 These are source-reachable, semantically unambiguous, and directly observable without relying on programmer misuse.
 
@@ -129,7 +125,6 @@ These are source-reachable, semantically unambiguous, and directly observable wi
 
 - Typed-array range or overflow behavior reached mainly through reversed ranges, impossible-sized views, extreme offsets, or similarly conspicuous misuse can still be a real accepted bug, but its value is low.
 - Robustness observations about producer-guaranteed internal invariants do not count as high-value bugs.
-- A JavaScript semantic mismatch involving uncommon usage, such as an empty search string with an explicit start, can be a real accepted defect while remaining low value when no local documentation, specification, or realistic workflow gives it practical importance.
 
 ## Exclude from Candidate Findings
 
