@@ -20,6 +20,7 @@ State the predicted externally observable failure in one falsifiable sentence.
 ## Reproduction
 
 - Candidate-specific artifact:
+- Non-obvious trigger comments:
 - Baseline command:
 - Exit code:
 - Focused output:
@@ -32,7 +33,7 @@ State the predicted externally observable failure in one falsifiable sentence.
 
 ## Root Cause
 
-Name the deciding code path and explain the mechanism.
+Name the deciding code path and explain the mechanism. For stateful bugs, identify the stored state, the transition that invalidates it, and how the stale or inconsistent state produces the observed result.
 
 ## Impact
 

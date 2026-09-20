@@ -4,9 +4,9 @@
 
 The experiment optimizes for **verified, high-value defects per reviewed candidate**, not raw finding volume. Compiler review is especially prone to attractive false positives because internal IR accepts states that the public producer never creates, and because legal optimizations may intentionally differ from source-level intuition.
 
-The central hypothesis after rounds 001 and 002 is:
+The current central hypothesis is:
 
-> Requiring supported-input reachability, an executable semantic oracle, candidate-specific reproducers, and an explicit value judgment will preserve real parser and miscompilation findings while suppressing synthetic IR, intended-behavior reports, and low-value boundary distractions.
+> Requiring supported-input reachability, an executable semantic oracle, candidate-specific reproducers, explicit state-transition explanations, and a locally grounded value judgment will preserve real parser, miscompilation, and runtime-state findings while suppressing synthetic IR, intended-behavior reports, and low-value boundary distractions.
 
 This is falsifiable. Keep scope and target commits fixed, run prompt revisions, review them blind to revision identity when practical, and compare precision, yield, unreachable false positives, and holdout recall.
 
@@ -59,6 +59,8 @@ Execute a minimal input on the unmodified baseline and record the command, exit 
 
 Code inspection alone may produce a `defer` candidate, never an `accept`.
 
+A differential result can establish expected behavior when the reference contract applies, but does not by itself establish high value. Value also depends on local documentation or invariants, realistic use, and practical impact. For a subtle stateful failure, describe the stored state, the transition that invalidates it, and how the stale state produces the observation; add concise trigger and expectation comments to its reproducer.
+
 ## Verdict Policy
 
 | Decision | Verdict | Meaning | Typical action |
@@ -69,7 +71,7 @@ Code inspection alone may produce a `defer` candidate, never an `accept`.
 
 The AI omits rejected hypotheses from Candidate Findings. The human may still reject any reported candidate during review.
 
-Value is independent of decision. Rate ordinary valid-input crashes, miscompilations, invalid output, and clear evaluation-semantic failures as high value. Rate issues requiring extreme boundary values, conspicuously erroneous input, or narrow robustness conditions as low value. A potentially severe issue without decisive contract evidence remains deferred with unknown value.
+Value is independent of decision. Rate ordinary valid-input crashes, miscompilations, invalid output, and clear evaluation-semantic or runtime-state failures as high value. Rate issues requiring extreme boundary values, conspicuously erroneous input, uncommon API behavior without a clear local contract or realistic workflow, or narrow robustness conditions as low value. A potentially severe issue without decisive contract evidence remains deferred with unknown value.
 
 ## Iterating The Prompt Without Leakage
 

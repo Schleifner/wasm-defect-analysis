@@ -18,6 +18,8 @@ Each completed round contains only:
 
 `round-002` is also a **training set** because its reviewed lessons are included in the current prompt. Its five reviewed judgments are stored in [round-002](round-002).
 
+`round-003` is a **training set** because its reviewed lessons are included in the current prompt. Its three reviewed judgments are stored in [round-003](round-003).
+
 ## Adding A Round
 
 After human review, add one round directory containing `review.md` and `oracle.json`. The oracle records stable IDs, target commit, decision, value, and concise supervision rationale. The review explains the decisions and reusable workflow feedback.

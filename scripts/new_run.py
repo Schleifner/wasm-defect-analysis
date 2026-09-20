@@ -192,7 +192,6 @@ the AI rejects. Use one independently minimized source artifact per candidate. W
 - Final decision: `accept` / `downgrade` / `reject` / `defer`
 - Value: `high` / `low` / `none` / `unknown`
 - Review:
-- Key evidence:
 
 ## Summary
 

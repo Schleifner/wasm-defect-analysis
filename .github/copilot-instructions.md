@@ -19,6 +19,8 @@ This repository evaluates AI-assisted defect discovery in the pinned compiler su
 - Reproduce on the pinned baseline with an exact command and independent oracle.
 - Run a nearby negative/control case.
 - Give each reported candidate its own independently minimized source artifact; do not combine bugs in one source file or multi-export harness.
+- Add concise comments to non-obvious reproducers that identify the triggering transition and expected observation.
+- For subtle stateful bugs, explain the stored state, the transition that invalidates it, and how the stale state produces the observed failure.
 - Record only reproduced `accept`, `downgrade`, and genuinely uncertain `defer` candidates in `report.md`. Omit hypotheses the AI rejects.
 - Rate every reported candidate as `high`, `low`, or `unknown` value independently of its recommendation.
 - Never promote a finding because it merely looks unsafe or because a synthetic IR test fails.
@@ -30,11 +32,11 @@ This repository evaluates AI-assisted defect discovery in the pinned compiler su
 - `reject`: intended behavior, producer-impossible state, falsified hypothesis, or non-actionable diagnostic; omit it from Candidate Findings.
 - `defer`: reproduced behavior whose contract or oracle remains genuinely unresolved.
 
-Prioritize ordinary valid programs with surprising compiler behavior. Deprioritize extreme API arguments, conspicuously erroneous source, and narrow robustness cases unless they expose a broader semantic failure.
+Prioritize ordinary valid programs with surprising compiler behavior. Deprioritize extreme API arguments, conspicuously erroneous source, uncommon API behavior without a clear local contract or realistic workflow, and narrow robustness cases unless they expose a broader semantic failure. A differential mismatch can support the oracle but does not by itself make a candidate high value.
 
 ## Human Supervision
 
-The human reads `report.md` and writes the final decision in its human judgment section. Do not add a machine validation or scoring step. Do not rewrite an old report after review; update the single source prompt only after preserving the current run snapshot, then create a new run. Treat `supervision/round-001` as training data only, because its labels are already present in the prompt.
+The human reads `report.md` and writes the final decision in its human judgment section. Do not add a machine validation or scoring step. Do not rewrite an old report after review; update the single source prompt only after preserving the current run snapshot, then create a new run. Treat supervision rounds referenced by the active prompt as training data only because their labels are already exposed.
 
 ## Public Chinese Analysis Log
 

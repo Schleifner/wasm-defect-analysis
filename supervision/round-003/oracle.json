@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "round_id": "round-003-warpo",
+  "split": "training",
+  "source_run": "runs/round-003-warpo",
+  "source_review": "review.md",
+  "target": {
+    "repository": "warpo",
+    "baseline_commit": "8466a752edccaedb5de8ae3246e139a7fb71a51d"
+  },
+  "expected_summary": {
+    "reported_total": 3,
+    "accept": 3,
+    "downgrade": 0,
+    "reject": 0,
+    "defer": 0,
+    "high_value": 2,
+    "low_value": 1,
+    "ai_value_overrated": 1
+  },
+  "findings": [
+    {
+      "id": "R3-001",
+      "report_candidate": "C-001",
+      "title": "String.replaceAll underallocates for a long replacement",
+      "decision": "accept",
+      "verdict": "actionable_bug",
+      "value": "high",
+      "producer_reachable": true,
+      "technical_reasoning": "correct",
+      "value_reasoning": "correct",
+      "recommended_action": "fix",
+      "baseline_observed": "AssemblyScript abort at 245:14 (message=0, file=480)",
+      "expected": "replacement result length 11",
+      "supervision": "Reward this discovery pattern. The implementation grows capacity only once even when the required write is still larger, so the defect follows from the local invariant and reproduces with ordinary valid string input; an external differential oracle is corroboration rather than the basis of the finding."
+    },
+    {
+      "id": "R3-002",
+      "report_candidate": "C-002",
+      "title": "String.indexOf ignores start for an empty search string",
+      "decision": "accept",
+      "verdict": "actionable_bug",
+      "value": "low",
+      "producer_reachable": true,
+      "technical_reasoning": "correct",
+      "value_reasoning": "overrated",
+      "recommended_action": "fix",
+      "baseline_observed": "indexOf returned 0",
+      "expected": "indexOf returned 2",
+      "supervision": "The JavaScript semantic mismatch is a real defect, but rate it low value: empty-search-with-start is uncommon, existing tests did not cover it, and no local documentation or specification establishes it as an important supported workflow. Differential disagreement alone does not imply high value."
+    },
+    {
+      "id": "R3-003",
+      "report_candidate": "C-003",
+      "title": "Map rehash makes an active iterator skip a live entry",
+      "decision": "accept",
+      "verdict": "actionable_bug",
+      "value": "high",
+      "producer_reachable": true,
+      "technical_reasoning": "correct",
+      "value_reasoning": "correct",
+      "recommended_action": "fix",
+      "baseline_observed": "next iterator key was 4",
+      "expected": "next iterator key was 3",
+      "supervision": "Reward subtle runtime-state findings. The report should clearly explain that the iterator stores a physical offset, rehash compacts live entries without updating active iterators, and the stale offset skips a surviving entry. Add comments to the reproducer that identify the rehash trigger and expected next key."
+    }
+  ]
+}
