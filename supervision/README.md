@@ -20,8 +20,12 @@ Each completed round contains only:
 
 `round-003` is a **training set** because its reviewed lessons are included in the current prompt. Its three reviewed judgments are stored in [round-003](round-003).
 
+`round-004` is a **training set** because its reviewed lessons are included in the current prompt. Its four retained judgments are stored in [round-004](round-004): two accepted high-value defects and two rejected candidates. One rejection retains a high exploratory-value rating, so the oracle records both all high-value ratings and the accepted high-value count separately. Stable candidate IDs need not be contiguous.
+
 ## Adding A Round
 
 After human review, add one round directory containing `review.md` and `oracle.json`. The oracle records stable IDs, target commit, decision, value, and concise supervision rationale. The review explains the decisions and reusable workflow feedback.
+
+Promote retained candidate judgments from the human review, not stale summary counts. Preserve human decision and value labels independently, along with any issue links. Do not rewrite a reviewed run or its prompt snapshot while incorporating lessons into the current source prompt.
 
 Keep oracle labels inaccessible to the discovery agent for validation and holdout runs. When a case is promoted from exploration, freeze it before comparing another prompt.

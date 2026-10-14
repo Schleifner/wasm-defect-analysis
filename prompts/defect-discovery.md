@@ -8,7 +8,7 @@ supervision: supervision/*/oracle.json
 
 You are auditing pinned revisions of two compiler stages:
 
-1. Warpo compiles supported AssemblyScript/TypeScript source to WebAssembly.
+1. Warpo compiles supported AssemblyScript source to WebAssembly.
 2. wasm-compiler consumes supported WebAssembly binaries and produces executable artifacts for the WARP runtime.
 
 Optimize for reproducible, high-value bugs. A plausible code smell, a failed hypothesis, or an unsupported synthetic state is not a report candidate.
@@ -21,6 +21,7 @@ Establish the public input boundary before searching:
 - For a Warpo pass used only by that frontend, prove internally that the frontend can emit the relevant IR shape. Hand-written WAT is insufficient unless documentation, tests, or a public entry point establish arbitrary Wasm as supported input to that pass.
 - For wasm-compiler, a valid supported Wasm binary is itself public input. WAT converted by a standard assembler is acceptable when all exercised features are documented as supported.
 - For pipeline issues, compile source with the pinned Warpo revision, then feed that exact Wasm to the pinned wasm-compiler revision.
+- Source acceptance alone does not prove supported behavior. Check contracts for raw writes to compiler-generated objects and for host/backend integration, including nested Wasm calls.
 
 Do not transfer assumptions between the two repositories merely because both manipulate Wasm.
 
@@ -57,6 +58,10 @@ node scripts/run_warpo_wasm.mjs \
 
 The shared runner is execution infrastructure, not an independent semantic oracle. Use a candidate-specific runtime when additional imports are part of the behavior under test.
 
+For a module whose assertions execute in its start function, module instantiation is the runtime check; an exported test function is not required. Provide the declared imports and record the exact assertion location rather than accepting any thrown exception as the expected failure.
+
+When the JavaScript compiler wrapper may conceal a native crash, invoke `upstream/warpo/build/warpo/warpo_asc` directly. Capture its exit status or signal, diagnostic, and output existence; do not treat wrapper exit zero as successful compilation without a fresh output artifact.
+
 # Mandatory Discovery Loop
 
 For each code area:
@@ -70,7 +75,7 @@ For each code area:
 7. Minimize the reproducer into a candidate-specific source file. Never combine multiple bugs into one AssemblyScript test file.
 8. Run a nearby negative or control case that challenges the hypothesis.
 9. For a non-obvious stateful failure, explain the mechanism as a sequence: what state the old implementation stores, which transition invalidates it, and how the stale or inconsistent state causes the observed result.
-10. Add concise comments to a non-obvious reproducer that identify the triggering transition and expected observation. Do not narrate self-explanatory lines.
+10. Add concise comments to non-obvious reproduction cases, identifying the triggering transition and the expected outcome. Variable and function names in test cases should clearly convey their meaning and be easy to understand.
 11. Assign both a technical recommendation and a value rating, with a short rationale for the value rating.
 12. Omit hypotheses that the AI concludes should be rejected. A reproduced but genuinely uncertain candidate may be reported as `defer` for human judgment.
 
@@ -115,16 +120,6 @@ Prioritize high-value candidates. Do not inflate high-value yield with accepted 
 
 Treat these judgments as training signal. Learn the decision rule, not the filenames.
 
-## Reward as high value
-
-- Valid source crashes a parser where the language requires a diagnostic.
-- Valid object-literal source evaluates accessors in the wrong order and returns incorrect runtime values.
-- An ordinary postfix property update evaluates a side-effecting receiver twice, so it can read one object and write another.
-- A string growth path allocates less capacity than its immediately required write, and ordinary input reaches the resulting failure. The local capacity invariant proves the defect without depending on cross-language comparison.
-- A live map iterator stores a physical entry offset that becomes stale when rehash compacts entries, causing a surviving entry to be skipped. Reward this non-obvious runtime-state pattern and explain the invalidation sequence precisely.
-
-These are source-reachable, semantically unambiguous, and directly observable without relying on programmer misuse.
-
 ## Lower search priority
 
 - Typed-array range or overflow behavior reached mainly through reversed ranges, impossible-sized views, extreme offsets, or similarly conspicuous misuse can still be a real accepted bug, but its value is low.
@@ -138,6 +133,10 @@ These are source-reachable, semantically unambiguous, and directly observable wi
 - Duplicate diagnostics for an already unsupported construct without semantic impact.
 - Producer-impossible IR states.
 - Hypotheses falsified by direct baseline execution.
+- O0/O3 mismatches caused by unsupported raw writes to immutable compiler-generated static function fields, such as `_index` or `_env`.
+- Host re-entry examples that violate the intended backend's explicit no-nested-Wasm-call contract, even if a different runtime executes them.
+
+Keep a useful exploratory investigation distinct from an accepted bug: human rejection and a high exploratory-value rating can coexist. Documentation of a hidden integration restriction is a separate observation, not evidence that the restricted workflow is supported.
 
 # Search Priorities
 
@@ -160,17 +159,17 @@ Choose each search direction for an explicit reason such as ownership of the dec
 - Store one minimized reproducer source per candidate, using a stable candidate-specific name or directory under `artifacts/`.
 - Do not use one multi-export source file or shared executable harness to reproduce several candidates.
 - Keep only setup required to trigger the candidate and observe its oracle.
+- Do not retain an O0/O3 mismatch as a minimization requirement when a smaller source exposes the same root cause at both levels. Use descriptive names and explain only the non-obvious collection, invalidation, or storage-reuse transition.
 - A control may share the candidate's artifact only when doing so remains minimal and makes the contrast clearer; it must not introduce another candidate.
 - Reuse `scripts/run_warpo_wasm.mjs` only as common execution infrastructure.
 
 # Output
 
-Write the formatted report directly into `report.md`, following its headings. For each reported candidate include:
+Write the formatted report in Chinese directly into `report.md`, following its headings. For each reported candidate include:
 
 - location;
 - falsifiable hypothesis;
-- root cause;
-- impact;
+- root cause(provide a detailed explanation in Chinese);
 - one combined reproduction entry containing the artifact path, exact baseline command, exit code, and focused output;
 - independent oracle;
 - negative or control case;

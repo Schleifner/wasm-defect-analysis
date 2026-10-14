@@ -89,7 +89,7 @@ AI 直接填写 `report.md`，每个候选至少回答：
 4. 独立 oracle 是什么？
 5. 邻近的反例或控制用例是否通过？
 
-生产者可达性仍然是候选进入报告前的硬性条件，但不再作为单独字段重复填写。AI 已经判断为 `reject` 的假设不写进 Candidate Findings；只有复现成功的 `accept`、`downgrade`，以及确实缺少决定性证据的 `defer` 可以保留给人工复核。
+AI 已经判断为 `reject` 的假设不写进 Candidate Findings；只有复现成功的 `accept`、`downgrade`，以及确实缺少决定性证据的 `defer` 可以保留给人工复核。
 
 每个候选必须使用独立、最小化的源文件，不要把多个 bug 放进一个 AS 文件或多导出 harness。复现输入、精确命令、退出码和关键输出合并写在同一个“Reproduction”条目中。
 
@@ -104,8 +104,6 @@ AI recommendation 之外还要给出独立的价值判断：
 外部差异测试可以支持正确性 oracle，但差异本身不代表高价值。价值判断还要结合本地文档或实现不变量、现实使用方式和实际影响。
 
 Warpo 内部 pass 的手写 WAT/IR 不自动代表产品缺陷，必须证明 Warpo frontend 能产生该状态。wasm-compiler 的公开输入是受支持的合法 Wasm，因此由标准工具组装的合法 WAT 可以作为输入。
-
-如果没有发现问题，AI 应明确写“未发现”；如果证据不足，写 `defer`，不要猜测。
 
 ### 3.1 Warpo 固定构建与执行入口
 
@@ -165,21 +163,11 @@ node scripts/run_warpo_wasm.mjs /tmp/warpo-defect-workflow-smoke.wasm add 20 22
 runs/run-002-warpo-parser/report.md
 ```
 
-直接填写报告中的“人工评价”部分：
+直接填写报告中的“人工评价”部分，即本仓库的监督信号：
 
 - 最终结论：`accept` / `downgrade` / `reject` / `defer`；
 - 价值：`high` / `low` / `none` / `unknown`；
 - `Review`：评价和依据。
-
-重点检查：
-
-- 输入是否能由目标项目的公开入口产生；
-- 行为是否真的违反规范或设计，而不是预期优化；
-- 是否在固定基线复现；
-- 是否有独立 oracle；
-- 是否有附近的反例或控制用例。
-
-人工判断就是本仓库的监督信号。不要运行额外脚本，也不需要把评价拆到另一个 JSON 文件。
 
 ## 5. 迭代 Prompt
 
@@ -192,7 +180,7 @@ runs/run-002-warpo-parser/report.md
 
 同时检查报告是否把已否定的假设当作候选输出、是否把多个 bug 合并进同一个复现文件，以及是否把低价值边界问题误标成高价值。
 
-直接更新唯一的 `prompts/defect-discovery.md`，不要再创建 `v2-*`、`v3-*` 等并行文件。修改前应确保上一轮 Run 已经创建并保存其 `prompt.md` 快照；修改后使用新 Run ID。比较前后效果时，以各 Run 的 prompt SHA-256 和快照区分 revision，并尽量保持目标范围、模型预算和采样参数一致。
+更新 `prompts/defect-discovery.md`，然后人工审核。
 
 当前 Prompt 引用的 `supervision/` 轮次只能作为训练/回归监督。选择 Prompt revision 要使用未泄漏标签的 validation；最终泛化结果使用 holdout。
 
@@ -200,22 +188,9 @@ runs/run-002-warpo-parser/report.md
 
 一轮人工审阅完成后，在 `supervision/<round-id>/` 中只保存 `review.md` 和 `oracle.json`。前者记录人类可读的判断和流程反馈，后者记录供 Prompt 迭代与评估使用的结构化标签。复现源码、编译产物和运行日志不复制进监督目录。
 
-人工确认的发现只有在以下条件满足后才进入监督数据集：
-
-1. 在记录的基线提交上稳定复现；
-2. 已证明支持输入可达；
-3. 复现已最小化；
-4. 有独立 oracle；
-5. 有邻近控制用例；
-6. 已分配稳定 ID 和数据集 split。
-
-需要修复上游时，先保留基线 Run 的证据，再在对应 submodule 内做最小修改并运行其原生测试。除非明确要推进父仓库 pin，否则不要随意更新 submodule 指针。
-
 ## 仓库工具职责
 
 | 文件 | 职责 |
 | --- | --- |
 | `scripts/new_run.py` | 创建 Run，快照 Prompt、模型配置和上游提交 |
 | `scripts/update_upstreams.sh` | 按声明分支更新两个上游 submodule |
-
-本仓库不再使用 Python 做候选校验或自动评分。

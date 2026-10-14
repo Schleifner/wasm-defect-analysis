@@ -18,6 +18,8 @@ Reachability remains a mandatory admission check, but it is not a separate repor
 
 Warpo's source frontend is the producer for its internal optimization passes. A hand-written WAT or constructed Binaryen IR case is not sufficient when it violates a frontend invariant. First attempt to generate the shape from supported AssemblyScript. If that fails, inspect and cite the producer path before classifying the candidate.
 
+Excluding bugs arising from direct memory load/store attacks based on knowledge of memory layout.
+
 ## wasm-compiler Boundary
 
 wasm-compiler accepts supported WebAssembly bytecode directly. A valid Wasm module assembled from WAT is therefore a legitimate reproducer. Check the documented feature matrix and build configuration before treating an unsupported proposal as a defect.
@@ -59,5 +61,14 @@ Prioritize high-value findings. An accepted bug can still be low value. A refere
 - **Accept, high value:** an ordinary string replacement reaches a growth path whose new capacity is still smaller than the immediately required write. The local capacity invariant and baseline abort establish the defect without relying on a JavaScript comparison.
 - **Accept, low value:** an empty string search with an explicit start differs from JavaScript semantics, but the uncommon usage has no explicit local documentation or demonstrated realistic workflow. The defect is real; its value was overrated.
 - **Accept, high value:** map rehash compacts live entries while an active iterator retains a physical offset, causing it to skip an entry. For this kind of non-obvious runtime bug, explain the stored state, invalidating transition, and resulting behavior explicitly.
+
+## Decision Examples From Round 004
+
+- **Reject, high exploratory value:** an O0/O3 mismatch follows raw writes to `_index` or `_env` of an immutable compiler-generated static function object. The investigation can be useful while the mutation remains unsupported; do not count it as an accepted high-value bug.
+- **Reject, no value:** an imported-call GC example requires nested Wasm re-entry that the intended backend explicitly disallows. Reference-runtime agreement does not override this integration contract; clarify undocumented restrictions separately.
+- **Accept, high value:** a class-only global visitor omits managed function references, allowing a globally referenced closure and its captured environment to be collected. An optimization that removes a temporary root is an exposure condition, not the underlying root omission.
+- **Accept, high value:** normal supported source produces a constant zero closure environment, and a load-only lowering assertion crashes the compiler. Distinguish an unhandled producer-reachable alternative from a producer-guaranteed invariant that only needs a low-value assertion.
+
+An optimized/unoptimized mismatch is a useful discovery technique, not a required property of the final minimized reproducer. A smaller source failing at both levels can establish the same root cause more clearly. Human decision and value labels remain independent; accepted high-value yield must count only findings with both labels.
 
 When evidence is incomplete, use `defer`. Confidence language never substitutes for a command result.
