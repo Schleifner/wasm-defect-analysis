@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Create an immutable envelope for one AI defect-discovery experiment.
 
-The script snapshots the repository's discovery prompt and records the model configuration,
-scope, and exact compiler submodule commits so the run can be reproduced.
+The script snapshots the repository's discovery prompt and records the execution settings,
+scope, and exact harness and compiler commits so the run can be reproduced.
 """
 
 from __future__ import annotations
@@ -11,7 +11,6 @@ import argparse
 import hashlib
 import json
 import re
-import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -40,29 +39,25 @@ def git_output(repository: Path, *arguments: str) -> str:
 def target_metadata(repo_root: Path, name: str) -> dict[str, str]:
     relative_path = TARGET_PATHS[name]
     repository = repo_root / relative_path
-    if not repository.is_dir():
+    if not (repository / ".git").exists():
         raise ValueError(f"submodule is not initialized: {relative_path}")
+    if Path(git_output(repository, "rev-parse", "--show-toplevel")).resolve() != repository.resolve():
+        raise ValueError(f"target is not an independent Git worktree: {relative_path}")
+    if git_output(repository, "status", "--porcelain", "--untracked-files=all"):
+        raise ValueError(f"target has uncommitted changes: {relative_path}; commit or resolve them first")
 
-    declared_branch = git_output(
-        repo_root,
-        "config",
-        "-f",
-        ".gitmodules",
-        "--get",
-        f"submodule.upstream/{name}.branch",
-    )
+    commit = git_output(repo_root, "rev-parse", f":{relative_path.as_posix()}")
+    if git_output(repository, "rev-parse", "HEAD") != commit:
+        raise ValueError(f"{relative_path} does not match configured commit {commit}; run scripts/update_upstreams.sh")
     return {
         "path": relative_path.as_posix(),
-        "remote": git_output(repository, "remote", "get-url", "origin"),
-        "declared_branch": declared_branch,
-        "commit": git_output(repository, "rev-parse", "HEAD"),
+        "commit": commit,
     }
 
 
 def parse_args() -> argparse.Namespace:
     default_run_id = datetime.now(timezone.utc).strftime("run-%Y%m%dT%H%M%SZ")
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", required=True, help="model/provider identifier")
     parser.add_argument("--agent", default="unspecified", help="agent or harness identifier")
     parser.add_argument("--scope", required=True, help="code area or hypothesis budget")
     parser.add_argument(
@@ -97,6 +92,7 @@ def main() -> int:
     if not prompt_path.is_file():
         print(f"error: prompt does not exist: {prompt_path}", file=sys.stderr)
         return 2
+    prompt_bytes = prompt_path.read_bytes()
 
     selected_targets = (
         ("warpo", "wasm-compiler")
@@ -106,11 +102,11 @@ def main() -> int:
 
     try:
         targets = {name: target_metadata(repo_root, name) for name in selected_targets}
+        harness_commit = git_output(repo_root, "rev-parse", "HEAD")
     except (subprocess.CalledProcessError, ValueError) as error:
-        print(f"error: cannot inspect target revisions: {error}", file=sys.stderr)
+        print(f"error: cannot inspect baseline revisions: {error}", file=sys.stderr)
         return 1
 
-    prompt_bytes = prompt_path.read_bytes()
     prompt_version = prompt_path.stem
     run_dir = args.runs_dir / args.run_id
     if not run_dir.is_absolute():
@@ -121,20 +117,20 @@ def main() -> int:
 
     run_dir.mkdir(parents=True)
     (run_dir / "artifacts").mkdir()
-    shutil.copyfile(prompt_path, run_dir / "prompt.md")
+    (run_dir / "prompt.md").write_bytes(prompt_bytes)
 
     manifest: dict[str, Any] = {
-        "schema_version": 1,
+        "schema_version": 2,
         "run_id": args.run_id,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "status": "in_progress",
+        "harness_commit": harness_commit,
         "prompt": {
             "source": prompt_path.relative_to(repo_root).as_posix(),
             "snapshot": "prompt.md",
             "version": prompt_version,
             "sha256": hashlib.sha256(prompt_bytes).hexdigest(),
         },
-        "model": args.model,
         "execution": {
             "agent": args.agent,
             "temperature": args.temperature,
@@ -156,7 +152,7 @@ def main() -> int:
 
 - Run ID: `{args.run_id}`
 - Prompt: `{prompt_version}`
-- Model: `{args.model}`
+- Harness commit: `{harness_commit}`
 - Target: `{args.target}`
 - Baseline commits: Warpo `{targets.get('warpo', {}).get('commit', 'N/A')}`, wasm-compiler `{targets.get('wasm-compiler', {}).get('commit', 'N/A')}`
 

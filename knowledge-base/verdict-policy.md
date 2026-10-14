@@ -2,27 +2,73 @@
 
 ## Core Rule
 
-A reportable compiler bug needs all three: supported-input reachability, a contract violation, and an observed failure with an independent oracle.
+A confirmed compiler bug needs all three: supported-input reachability, a contract violation, and an observed failure with an independent oracle.
 
 Reachability remains a mandatory admission check, but it is not a separate report field. A candidate enters the report only after a minimal supported input reproduces it on the pinned baseline.
 
-## Report Filter
+This file is the authoritative source for supported-input boundaries, report admission,
+artifact requirements, decisions, and value ratings. The discovery prompt owns search
+strategy and report presentation; target skills own build and execution procedures.
+
+## Exploration Versus Admission
+
+Exploration may start with an unproved reachability hypothesis. Use a small, inexpensive
+source probe to learn whether the frontend emits the suspected shape and whether the
+predicted behavior occurs. Full reachability proof is not required before making that
+probe; it is required before admitting a finding.
+
+Hand-written WAT or internal IR may help isolate a mechanism, but a synthetic failure
+alone does not establish a Warpo product defect. Resolve the supported-input boundary
+and reproduce through it before promotion. Keep unconfirmed or falsified probes in the
+analysis log, not Candidate Findings. Code inspection alone does not qualify for `defer`.
+
+## Report Admission Gate
+
+A candidate may enter Candidate Findings only when:
+
+- A minimal, candidate-specific source artifact reproduces the behavior on the unmodified pinned baseline.
+- The exact baseline command, exit code, and focused output are recorded together.
+- The input is supported at a documented or code-proven public boundary, and reaches the relevant path.
+- The expected behavior is grounded in specifications, documentation, tests, comments, history, or adjacent implementations; conflicting design evidence has been checked.
+- An independent oracle is stated, or a reproduced `defer` case identifies the precise unresolved contract or oracle question.
+- A nearby negative or control case has been executed.
 
 - Report only reproduced candidates recommended as `accept`, `downgrade`, or `defer`.
 - Omit hypotheses the AI concludes are intended, unsupported, producer-impossible, falsified, duplicate, or otherwise non-actionable.
 - Use `defer` only when the behavior is reproduced but a decisive contract or oracle check remains unresolved. State the missing evidence.
 - If no candidate passes the gate, write `No findings` and summarize the areas searched.
-- Give every reported candidate its own independently minimized source artifact. Do not combine multiple bugs in one source file or multi-export harness.
+
+The shared runner and the compiler under test are not independent oracles. Appropriate
+oracles include a contract-backed expected diagnostic, validator result, runtime value,
+side-effect order, trap behavior, or differential result from an applicable reference.
+
+## Artifact Requirements
+
+- Give every reported candidate its own independently minimized source artifact under the run's `artifacts/`, using a stable candidate-specific name or directory. Do not combine multiple bugs in one source file or multi-export harness.
+- A common execution runner is allowed; a shared multi-candidate reproducer is not.
+- Keep only setup required to trigger the candidate and observe its oracle. A control may share the artifact when that keeps the contrast minimal and introduces no second candidate.
+- Use descriptive names and concise comments for non-obvious triggers and expected observations.
+- For stateful bugs, explain the stored state, the transition that invalidates it, and how the stale state produces the failure.
+- Do not preserve an O0/O3 mismatch as a minimization requirement when a smaller source demonstrates the same root cause at both levels.
 
 ## Warpo Boundary
 
 Warpo's source frontend is the producer for its internal optimization passes. A hand-written WAT or constructed Binaryen IR case is not sufficient when it violates a frontend invariant. First attempt to generate the shape from supported AssemblyScript. If that fails, inspect and cite the producer path before classifying the candidate.
 
-Excluding bugs arising from direct memory load/store attacks based on knowledge of memory layout.
+Exclude bugs arising from direct memory load/store attacks based on knowledge of memory layout.
+Source acceptance alone does not establish supported behavior. Check compiler-generated
+object contracts and the intended backend's host-integration restrictions, including
+nested Wasm re-entry, rather than assuming reference-runtime support applies locally.
 
 ## wasm-compiler Boundary
 
 wasm-compiler accepts supported WebAssembly bytecode directly. A valid Wasm module assembled from WAT is therefore a legitimate reproducer. Check the documented feature matrix and build configuration before treating an unsupported proposal as a defect.
+
+## Pipeline Boundary
+
+Compile supported source with the pinned Warpo revision and feed that exact output to
+the pinned wasm-compiler revision, without manual IR edits. Do not transfer assumptions
+between the two targets merely because both manipulate Wasm.
 
 ## Decision And Value
 
@@ -71,4 +117,6 @@ Prioritize high-value findings. An accepted bug can still be low value. A refere
 
 An optimized/unoptimized mismatch is a useful discovery technique, not a required property of the final minimized reproducer. A smaller source failing at both levels can establish the same root cause more clearly. Human decision and value labels remain independent; accepted high-value yield must count only findings with both labels.
 
-When evidence is incomplete, use `defer`. Confidence language never substitutes for a command result.
+Use `defer` only for reproduced behavior with the unresolved evidence described above.
+Without reproduction, record the missing check as an exploration blocker, not a candidate.
+Confidence language never substitutes for a command result.

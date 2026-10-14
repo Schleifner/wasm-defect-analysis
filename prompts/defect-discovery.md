@@ -13,54 +13,19 @@ You are auditing pinned revisions of two compiler stages:
 
 Optimize for reproducible, high-value bugs. A plausible code smell, a failed hypothesis, or an unsupported synthetic state is not a report candidate.
 
-# Target Contract
+# Required References
 
-Establish the public input boundary before searching:
+Read the selected run's `manifest.json` and use its target, scope, and pinned revisions.
+Before discovery, check each target's exact version tag, such as `3.3.0`, with `git -C <target-path> tag --points-at HEAD`. If no version tag exists, log `error` and stop unless this run's prompt explicitly requests analysis of an untagged commit.
+Record the checked tag and commit in the report; an ancestor's tag does not qualify.
 
-- For a Warpo frontend issue, use valid supported source input.
-- For a Warpo pass used only by that frontend, prove internally that the frontend can emit the relevant IR shape. Hand-written WAT is insufficient unless documentation, tests, or a public entry point establish arbitrary Wasm as supported input to that pass.
-- For wasm-compiler, a valid supported Wasm binary is itself public input. WAT converted by a standard assembler is acceptable when all exercised features are documented as supported.
-- For pipeline issues, compile source with the pinned Warpo revision, then feed that exact Wasm to the pinned wasm-compiler revision.
-- Source acceptance alone does not prove supported behavior. Check contracts for raw writes to compiler-generated objects and for host/backend integration, including nested Wasm calls.
+Read `knowledge-base/verdict-policy.md` as the authoritative source for supported-input
+boundaries, exploration versus admission, artifact requirements, decisions, value ratings,
+and reviewed supervision examples. Do not restate or relax those rules in a run directive.
 
-Do not transfer assumptions between the two repositories merely because both manipulate Wasm.
-
-# Operational Bootstrap
-
-For a Warpo run, read `.github/skills/warpo-defect-workflow/SKILL.md` before building or reproducing a candidate. Use its package-level workflow:
-
-```bash
-git submodule update --init upstream/warpo
-cd upstream/warpo
-npm ci
-npm run build
-```
-
-`npm run build` is the supported entry point and produces both the TypeScript CLI and local compiler binary. Do not spend discovery time replacing it with hand-selected CMake targets unless the npm command itself fails.
-
-Compile each candidate-specific source from the analysis repository root:
-
-```bash
-node upstream/warpo/dist/warpo.js \
-  runs/<run-id>/artifacts/C-001.ts \
-  -o runs/<run-id>/artifacts/C-001.wasm \
-  --exportRuntime
-```
-
-For modules that only require the standard AssemblyScript `env.abort` host import, invoke an exported function with:
-
-```bash
-node scripts/run_warpo_wasm.mjs \
-  runs/<run-id>/artifacts/C-001.wasm \
-  exportedFunction \
-  [numeric arguments]
-```
-
-The shared runner is execution infrastructure, not an independent semantic oracle. Use a candidate-specific runtime when additional imports are part of the behavior under test.
-
-For a module whose assertions execute in its start function, module instantiation is the runtime check; an exported test function is not required. Provide the declared imports and record the exact assertion location rather than accepting any thrown exception as the expected failure.
-
-When the JavaScript compiler wrapper may conceal a native crash, invoke `upstream/warpo/build/warpo/warpo_asc` directly. Capture its exit status or signal, diagnostic, and output existence; do not treat wrapper exit zero as successful compilation without a fresh output artifact.
+For Warpo, read `.github/skills/warpo-defect-workflow/SKILL.md` before building or executing
+probes. It owns initialization, baseline checks, npm builds, compilation, and runtime
+invocation. This prompt owns the discovery loop, search priorities, and report presentation.
 
 # Mandatory Discovery Loop
 
@@ -68,75 +33,32 @@ For each code area:
 
 1. Identify the owning parser, lowering, optimization, code-generation, standard-library, or runtime path. Trace past wrappers to the code that decides behavior.
 2. State one falsifiable bug hypothesis and the observable failure it predicts.
-3. Verify supported-input reachability before investing in a reproducer. This is an internal admission check, not a report field.
+3. Choose a cheap discriminating check. When reachability or behavior is uncertain, make a small exploratory source probe and inspect the emitted shape or observable result; do not wait for a complete reachability proof before probing.
 4. Check design intent in comments, tests, specifications, history, and neighboring implementations. Record conflicting evidence in working notes.
 5. Define an independent oracle: diagnostic text, validator result, reference-engine result, runtime value, side-effect order, trap behavior, or differential output.
-6. Reproduce on the unmodified pinned baseline before promoting the hypothesis. Capture the exact command, exit code, and focused output.
-7. Minimize the reproducer into a candidate-specific source file. Never combine multiple bugs into one AssemblyScript test file.
+6. Use the probe and producer path to resolve supported-input reachability. Reproduce on the unmodified pinned baseline before promotion; a synthetic IR failure remains a lead until a supported input demonstrates it.
+7. Minimize the candidate-specific reproducer and collect the reproduction entry required by the policy.
 8. Run a nearby negative or control case that challenges the hypothesis.
-9. For a non-obvious stateful failure, explain the mechanism as a sequence: what state the old implementation stores, which transition invalidates it, and how the stale or inconsistent state causes the observed result.
-10. Add concise comments to non-obvious reproduction cases, identifying the triggering transition and the expected outcome. Variable and function names in test cases should clearly convey their meaning and be easy to understand.
-11. Assign both a technical recommendation and a value rating, with a short rationale for the value rating.
-12. Omit hypotheses that the AI concludes should be rejected. A reproduced but genuinely uncertain candidate may be reported as `defer` for human judgment.
+9. Before reporting, briefly challenge the provisional explanation: identify the strongest plausible alternative that would make the observation not a bug. If a concrete alternative exists, use one cheap discriminating check to test it, including reference applicability, supported host behavior, or probe correctness when relevant. A passing control does not by itself settle these questions. Record the decisive result or the exact unresolved question; do not invent alternatives or require an exhaustive second audit.
+10. Apply the policy's admission gate and assessment rules, then write the report in the format below. Keep failed or unconfirmed probes in the chronological analysis log rather than Candidate Findings.
 
-Never edit upstream code during discovery. A patch belongs only after baseline evidence is captured.
+# Same-Run Neighborhood Search
 
-# Report Admission Gate
+Once a reproduced lead has a plausible root cause, follow it within the current run
+rather than saving all related exploration for the next round. Extract the specific
+mistaken assumption or missing case, then inspect a small in-scope neighborhood such
+as callers of the same helper, parallel handling branches, or a shared classification.
+Choose a small nearby probe that could expose an independent defect.
 
-A candidate may appear in `report.md` only when all of the following are true:
+Treat the proposed root cause as provisional until checked. Similar-looking code is
+a lead, not evidence of a sibling defect. Apply the policy's admission gate and
+duplicate filter to each result; different triggers of the same root cause extend
+the existing finding's coverage rather than becoming additional bug reports.
 
-- A minimal, candidate-specific artifact reproduces the behavior on the pinned baseline.
-- The exact reproduction command, exit code, and focused result are recorded together.
-- The input is valid at a documented or code-proven public boundary.
-- The relevant path is reached in the unmodified pinned revision.
-- An independent oracle or unresolved contract question is stated.
-- A nearby control case has been executed.
-
-If a hypothesis is falsified, intended behavior, unsupported, producer-impossible, duplicate, or otherwise non-actionable, omit it from Candidate Findings. Reflect search coverage only in `Areas searched with no findings`; do not include rejected candidate narratives.
-
-If no candidate passes this gate, write `No findings`.
-
-# Decision And Value
-
-Decision and value are independent dimensions.
-
-Use `accept` when a supported input reproducibly exposes an actionable compiler or standard-library defect. An accepted bug may still have low value.
-
-Use `downgrade` for a reproduced robustness or documentation concern that is real but does not warrant treatment as a user-visible compiler bug.
-
-Use `defer` only when the behavior is reproduced but a decisive contract, intent, or oracle check remains unresolved. State the exact missing evidence.
-
-Do not emit `reject` candidates. Reject them during analysis and leave them out of the report.
-
-Rate value as:
-
-- `high`: ordinary, semantically valid source unexpectedly crashes, miscompiles, emits invalid output, violates clear evaluation semantics, or breaks a realistic workflow.
-- `low`: the issue primarily involves extreme boundary values, obviously erroneous or nonsensical user code, uncommon API behavior without a clear local contract or realistic workflow, narrow robustness behavior, or diagnostic quality with limited practical impact.
-- `unknown`: use only with `defer` when the missing evidence prevents a value judgment.
-
-Prioritize high-value candidates. Do not inflate high-value yield with accepted low-value boundary or robustness bugs. A differential mismatch establishes expected behavior only when the reference contract applies; it does not by itself establish high user value. Prefer a local specification, documented invariant, implementation precondition, existing test intent, or realistic workflow when assigning value.
-
-# Supervision From Human Reviews
-
-Treat these judgments as training signal. Learn the decision rule, not the filenames.
-
-## Lower search priority
-
-- Typed-array range or overflow behavior reached mainly through reversed ranges, impossible-sized views, extreme offsets, or similarly conspicuous misuse can still be a real accepted bug, but its value is low.
-- Robustness observations about producer-guaranteed internal invariants do not count as high-value bugs.
-- A JavaScript semantic mismatch involving uncommon usage, such as an empty search string with an explicit start, can be a real accepted defect while remaining low value when no local documentation, specification, or realistic workflow gives it practical importance.
-
-## Exclude from Candidate Findings
-
-- A removed potentially trapping expression when that behavior is intentional compiler policy.
-- Generated-label collisions requiring hand-written WAT that Warpo cannot emit.
-- Duplicate diagnostics for an already unsupported construct without semantic impact.
-- Producer-impossible IR states.
-- Hypotheses falsified by direct baseline execution.
-- O0/O3 mismatches caused by unsupported raw writes to immutable compiler-generated static function fields, such as `_index` or `_env`.
-- Host re-entry examples that violate the intended backend's explicit no-nested-Wasm-call contract, even if a different runtime executes them.
-
-Keep a useful exploratory investigation distinct from an accepted bug: human rejection and a high exploratory-value rating can coexist. Documentation of a hidden integration restriction is a separate observation, not evidence that the restricted workflow is supported.
+Keep this follow-up bounded: stop when nearby checks no longer produce new evidence,
+record the outcome in the analysis log, and return to another direction within the
+declared scope. Do not turn one finding into a repository-wide search, exceed the
+run's budget, or patch upstream code during discovery.
 
 # Search Priorities
 
@@ -153,15 +75,6 @@ Prefer boundaries where ordinary valid programs have clear semantics and an inde
 Deprioritize malformed inputs, extreme API arguments, and obvious programmer errors after checking that no broader semantic failure exists. Do not prioritize synthetic IR states until supported-input paths have been exhausted.
 
 Choose each search direction for an explicit reason such as ownership of the declared scope, prior supervision, a suspicious deciding path, a cheap independent oracle, or expected user value. Record that reason when the direction is selected in the public analysis log.
-
-# Artifact Rules
-
-- Store one minimized reproducer source per candidate, using a stable candidate-specific name or directory under `artifacts/`.
-- Do not use one multi-export source file or shared executable harness to reproduce several candidates.
-- Keep only setup required to trigger the candidate and observe its oracle.
-- Do not retain an O0/O3 mismatch as a minimization requirement when a smaller source exposes the same root cause at both levels. Use descriptive names and explain only the non-obvious collection, invalidation, or storage-reuse transition.
-- A control may share the candidate's artifact only when doing so remains minimal and makes the contrast clearer; it must not introduce another candidate.
-- Reuse `scripts/run_warpo_wasm.mjs` only as common execution infrastructure.
 
 # Output
 

@@ -24,24 +24,12 @@ flowchart TD
 
 ## 1. 准备上游版本
 
-仓库管理两个顶层 submodule：
-
-- `upstream/warpo` 跟踪 `main`；
-- `upstream/wasm-compiler` 跟踪 `develop`。
-
-初始化：
-
-```bash
-git submodule update --init upstream/warpo upstream/wasm-compiler
-```
-
-需要主动更新到远端最新提交时：
+默认使用父仓库为 `upstream/warpo` 和 `upstream/wasm-compiler` 配置的 submodule commit，
+不追踪远端最新分支。初始化或同步版本只需：
 
 ```bash
 ./scripts/update_upstreams.sh
 ```
-
-不要从父仓库执行递归 submodule 初始化。每次 Run 都保存精确提交，所以更新上游不会改变旧实验的上下文。
 
 ## 2. 创建一次 Run
 
@@ -50,7 +38,6 @@ git submodule update --init upstream/warpo upstream/wasm-compiler
 ```bash
 python3 scripts/new_run.py \
   --run-id run-002-warpo-parser \
-  --model <provider/model> \
   --agent <agent-or-harness> \
   --target warpo \
   --scope "frontend parser diagnostics" \
@@ -68,92 +55,32 @@ runs/run-002-warpo-parser/
   artifacts/
 ```
 
-- `manifest.json` 固定模型、参数、范围、Prompt 哈希和上游提交。
+- `manifest.json` 记录执行参数、范围、Prompt 哈希、harness 提交和上游 commit。
 - `prompt.md` 是唯一源 Prompt `prompts/defect-discovery.md` 在本轮创建时的快照。
-- `report.md` 是 AI 输出和人工评价的共同载体。
+- `report.md` 是 AI 输出和人工评价的共同载体，元数据中列出提交号，AI 按 Prompt 补充检查到的 tag。
 - `artifacts/` 保存最小复现输入和精简日志。
 
 仓库只维护 `prompts/defect-discovery.md` 这一个源 Prompt。Run 生成器总是快照它的当前内容，并在 manifest 中记录 SHA-256。旧 Run 使用各自目录中的 `prompt.md` 保留当时内容，因此后续迭代源 Prompt 不会改变历史实验。
 
-Run ID 不复用。修改 Prompt、模型配置、范围或重试实验时都创建新 Run。
+创建 Run 时检查所选目标已初始化、工作树干净、`HEAD` 与配置 commit 一致，失败即报错退出。
+
+Run ID 不复用。修改 Prompt、执行配置、范围或重试实验时都创建新 Run。旧 Run 的 manifest、Prompt 和已审阅报告不做迁移。
 
 ## 3. AI 分析
 
 让分析 agent 读取本轮的 `manifest.json` 和 `prompt.md`，只分析声明的目标与范围。发现阶段不修改两个上游 submodule。
 
-AI 直接填写 `report.md`，每个候选至少回答：
+AI 按本轮 Prompt 的搜索循环工作并填写 `report.md`。候选输入边界、准入条件、artifact 要求、结论和价值评级统一以 [verdict policy](../knowledge-base/verdict-policy.md) 为准。
 
-1. 哪个公开输入能够到达这段代码？
-2. 实际行为违反了什么规范、设计或可验证语义？
-3. 在固定基线上执行了什么命令，观察到了什么？
-4. 独立 oracle 是什么？
-5. 邻近的反例或控制用例是否通过？
-
-AI 已经判断为 `reject` 的假设不写进 Candidate Findings；只有复现成功的 `accept`、`downgrade`，以及确实缺少决定性证据的 `defer` 可以保留给人工复核。
-
-每个候选必须使用独立、最小化的源文件，不要把多个 bug 放进一个 AS 文件或多导出 harness。复现输入、精确命令、退出码和关键输出合并写在同一个“Reproduction”条目中。
-
-对于不直观的状态型缺陷，报告要说明原实现保存了什么状态、哪个状态转移使它失效，以及失效状态如何产生实际错误。复现源码中增加简短注释，标出触发该转移的操作和预期观察，不要逐行解释显然的代码。
-
-AI recommendation 之外还要给出独立的价值判断：
-
-- `high`：普通、语义正确的输入发生崩溃、误编译、无效输出或明确的求值语义错误；
-- `low`：主要依赖极端边界值、明显错误或不合理的用户代码、缺少明确本地契约或现实工作流的不常见 API 用法、狭窄的健壮性问题；
-- `unknown`：仅用于证据不足的 `defer`。
-
-外部差异测试可以支持正确性 oracle，但差异本身不代表高价值。价值判断还要结合本地文档或实现不变量、现实使用方式和实际影响。
-
-Warpo 内部 pass 的手写 WAT/IR 不自动代表产品缺陷，必须证明 Warpo frontend 能产生该状态。wasm-compiler 的公开输入是受支持的合法 Wasm，因此由标准工具组装的合法 WAT 可以作为输入。
+探索时允许先做低成本的小型源码探针，借此确认可达性和实际行为；证明尚未完成不是禁止实验的理由。但探针不能直接升格成候选。只有通过 policy 的报告准入门槛后才进入 Candidate Findings；未复现或被否定的线索保留在分析日志中，而不是用 `defer` 绕过门槛。
 
 ### 3.1 Warpo 固定构建与执行入口
 
-分析 Warpo 时先读取 `.github/skills/warpo-defect-workflow/SKILL.md`，不要每轮重新推导构建和 Node.js 运行方式。Node.js 版本必须不低于 22.4。从仓库根目录执行：
-
-```bash
-git submodule update --init upstream/warpo
-cd upstream/warpo
-npm ci
-npm run build
-cd ../..
-```
-
-`npm run build` 是稳定入口，会生成 `upstream/warpo/dist/warpo.js` 和 `upstream/warpo/build/warpo/warpo_asc`。CMake 是 npm 脚本的内部实现；除非正在诊断 `npm run build` 本身的失败，否则不要手工挑选 CMake target。
-
-每个候选使用独立的最小 AS 源文件，然后从仓库根目录编译和执行：
-
-```bash
-node upstream/warpo/dist/warpo.js \
-  runs/<run-id>/artifacts/C-001.ts \
-  -o runs/<run-id>/artifacts/C-001.wasm \
-  --exportRuntime
-node scripts/run_warpo_wasm.mjs \
-  runs/<run-id>/artifacts/C-001.wasm \
-  exportedFunction \
-  42 7n
-```
-
-通用 runner 提供标准的 `env.abort`，接受普通数值参数，并用 `n` 后缀表示 `i64`。它会明确拒绝未知 import；需要 WASI 或项目特定 import 时，在候选目录中创建专用 runner，不要向通用 runner 静默加入无语义的 stub。runner 只负责稳定执行，不是独立 oracle。
-
-可用下面的命令检查整条基础设施链路，预期输出为 `add=42`：
-
-```bash
-node upstream/warpo/dist/warpo.js \
-  .github/skills/warpo-defect-workflow/assets/smoke.ts \
-  -o /tmp/warpo-defect-workflow-smoke.wasm \
-  --exportRuntime
-node scripts/run_warpo_wasm.mjs /tmp/warpo-defect-workflow-smoke.wasm add 20 22
-```
+读取 [Warpo workflow skill](../.github/skills/warpo-defect-workflow/SKILL.md)，按其中步骤核对基线、安装依赖、构建、编译探针和执行模块。该 skill 是操作步骤的唯一维护位置，包含 smoke 检查、导出函数与 start-only 两种执行方式，以及原生编译器崩溃时的取证方法。
 
 ### 3.2 中文分析过程记录
 
-从一轮 discovery 开始时就在 `report.md` 的 `## 中文分析过程记录` 下持续追加公开的中文分析日志，不要等结束后再概括。按实际发生顺序简要记下：
-
-- 当前选择的 detect 方向以及选择原因；
-- 提出的可证伪假设和准备做的关键检查；
-- 检查得到的关键事实，以及该事实如何让方向继续、停止或转向；
-- 被否定的假设和未形成候选的方向。
-
-完成时保留这些条目的原始顺序和表述，不要再改写成经过整理的审计或摘要。Candidate Findings 仍只收录通过 admission gate 的候选；过程日志可以保留失败方向。不要改写留给人的 `Human Review` 内容。
+日志的内容、追加时机和最终报告格式由本轮 `prompt.md` 定义，见[源 Prompt 的 Output 部分](../prompts/defect-discovery.md#output)。旧 Run 仍按自己的快照执行，不要用后来更新的源 Prompt 重写其日志或人工评价。
 
 ## 4. 人类阅读和评价
 
@@ -192,5 +119,5 @@ runs/run-002-warpo-parser/report.md
 
 | 文件 | 职责 |
 | --- | --- |
-| `scripts/new_run.py` | 创建 Run，快照 Prompt、模型配置和上游提交 |
-| `scripts/update_upstreams.sh` | 按声明分支更新两个上游 submodule |
+| `scripts/new_run.py` | 记录配置 commit，创建 Run 并快照 Prompt |
+| `scripts/update_upstreams.sh` | 同步配置的 submodule commit |

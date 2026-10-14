@@ -6,7 +6,7 @@ Each directory is an immutable experiment envelope created with `scripts/new_run
 
 ```text
 runs/<run-id>/
-  manifest.json      Prompt hash, model, scope, and exact upstream commits
+  manifest.json      Prompt hash, execution settings, scope, harness and upstream commits
   prompt.md          Prompt snapshot used for this run
   report.md          AI's formatted report and the human's final judgment
   artifacts/         Local reproducers and focused logs (ignored by Git)

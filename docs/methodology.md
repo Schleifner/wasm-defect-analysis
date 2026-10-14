@@ -30,48 +30,19 @@ Each discovery report also contains a public Chinese analysis log written as the
 
 The Python helper does not invoke a model. It creates an experiment envelope only. Model execution is performed manually through VS Code Copilot Agent mode, which reads the run's prompt and manifest, investigates the pinned checkout with its normal tools, and writes the Markdown report.
 
-## Three Proof Obligations
+## Evidence Policy
 
-### 1. Reachability
+[Verdict policy](../knowledge-base/verdict-policy.md) is the authoritative source for
+supported-input boundaries, evidence obligations, report admission, decisions, and value
+ratings. This methodology describes experiment design, not a second set of triage rules.
 
-Prove that supported public input reaches the suspicious path.
+Exploration and reporting are separate stages: a small source probe can resolve uncertain
+reachability or behavior before a complete proof exists. Only after the policy's admission
+gate is met does that lead become a reported candidate. An unexecuted code-inspection
+hypothesis remains in the analysis log, not a `defer` finding.
 
-- Warpo frontend: valid supported AssemblyScript/TypeScript is strongest.
-- Warpo internal pass: trace the frontend-produced IR. Hand-written WAT alone does not establish a Warpo bug when the pass has a narrower producer contract.
-- wasm-compiler: valid supported Wasm is public input, so WAT assembled by a standard tool is acceptable.
-- End-to-end: Warpo output at the pinned commit becomes wasm-compiler input without manual IR edits.
-
-Reachability is an internal admission check rather than a separate report field. Report only candidates with a minimal supported input that reaches and triggers the fault; omit producer-unreachable hypotheses.
-
-### 2. Contract Violation
-
-Name the rule that observed behavior violates: language semantics, WebAssembly validation, documented behavior, an existing invariant, or differential agreement with a trusted engine. Check tests, comments, docs, history, and adjacent implementations for intentional behavior.
-
-### 3. Trigger And Oracle
-
-Execute a minimal input on the unmodified baseline and record the command, exit code, and focused output. Prefer independent oracles:
-
-- expected diagnostic instead of abort;
-- WebAssembly validator acceptance/rejection;
-- observable return value, side-effect order, or trap;
-- differential execution against `wasm-interp` or another conforming engine;
-- before/after IR plus runtime behavior for optimization passes.
-
-Code inspection alone may produce a `defer` candidate, never an `accept`.
-
-A differential result can establish expected behavior when the reference contract applies, but does not by itself establish high value. Value also depends on local documentation or invariants, realistic use, and practical impact. For a subtle stateful failure, describe the stored state, the transition that invalidates it, and how the stale state produces the observation; add concise trigger and expectation comments to its reproducer.
-
-## Verdict Policy
-
-| Decision | Verdict | Meaning | Typical action |
-| --- | --- | --- | --- |
-| `accept` | `actionable_bug` | Reachable, reproduced semantic or robustness failure with meaningful user impact | Fix and add regression test |
-| `downgrade` | `robustness_only` | Correct invariant observation without demonstrated supported-input impact | Assert, document, or harden |
-| `defer` | `insufficient_evidence` | A decisive check is unavailable or inconclusive | Record the missing experiment |
-
-The AI omits rejected hypotheses from Candidate Findings. The human may still reject any reported candidate during review.
-
-Value is independent of decision. Rate ordinary valid-input crashes, miscompilations, invalid output, and clear evaluation-semantic or runtime-state failures as high value. Rate issues requiring extreme boundary values, conspicuously erroneous input, uncommon API behavior without a clear local contract or realistic workflow, or narrow robustness conditions as low value. A potentially severe issue without decisive contract evidence remains deferred with unknown value.
+Operational steps belong to the target skill; the discovery loop and report format belong
+to the run's prompt snapshot. The human remains responsible for the final judgment.
 
 ## Iterating The Prompt Without Leakage
 
@@ -118,14 +89,9 @@ The first implementation intentionally uses standard-library Python and JSON fil
 
 ## Supervision Promotion Rules
 
-A human-confirmed finding should move from a run into the supervision set only after:
-
-1. baseline behavior is reproduced at the recorded commit;
-2. the supported input boundary is established;
-3. the reproducer is independently minimized in a candidate-specific source file and stored or deterministically generated;
-4. an independent oracle exists;
-5. a nearby negative/control case exists;
-6. sensitive or bulky artifacts are removed;
-7. the case receives a stable ID and split assignment.
+A human-confirmed finding should move from a run into the supervision set only after
+the [verdict policy](../knowledge-base/verdict-policy.md) evidence and artifact requirements
+are met. Assign a stable ID and split, remove sensitive or bulky content from supervision
+records, and follow [supervision promotion guidance](../supervision/README.md).
 
 Do not train on a validation or holdout label during the same evaluation cycle.
