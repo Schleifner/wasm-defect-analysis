@@ -1,0 +1,92 @@
+{
+    "schema_version": 1,
+    "round_id": "round-004-warpo",
+    "split": "training",
+    "source_run": "runs/round-004-warpo",
+    "source_review": "review.md",
+    "target": {
+        "repository": "warpo",
+        "baseline_commit": "0637147a700aacd5c8913b639f1ded3a8aebaaf7"
+    },
+    "expected_summary": {
+        "reported_total": 4,
+        "accept": 2,
+        "downgrade": 0,
+        "reject": 2,
+        "defer": 0,
+        "high_value": 3,
+        "low_value": 0,
+        "no_value": 1,
+        "accepted_high_value": 2,
+        "ai_value_overrated": 1,
+        "ai_value_underrated": 1
+    },
+    "findings": [
+        {
+            "id": "R4-001",
+            "report_candidate": "C-001",
+            "title": "Immutable-load elimination after raw writes to static function objects",
+            "decision": "reject",
+            "verdict": "unsupported_input",
+            "value": "high",
+            "producer_reachable": true,
+            "supported_input_reachable": false,
+            "technical_reasoning": "incorrect",
+            "value_reasoning": "underrated",
+            "recommended_action": "retain_optimization",
+            "baseline_observed": "Warpo O0 returned mutateFunctionIndex=1; O3 returned mutateFunctionIndex=0",
+            "expected": "Compiler-generated static function objects are immutable. Raw writes to their internal fields are unsupported; consistent behavior across optimization levels is not guaranteed after those writes.",
+            "issue_url": "https://github.com/wasm-ecosystem/warpo/issues/656",
+            "supervision": "Validate the contract of the modified memory before promoting an optimized/unoptimized mismatch. Raw access to _index or _env of a compiler-generated static function object does not establish a supported-input bug. Preserve the human's high exploratory-value rating independently of rejection; the investigation was useful, but the optimization should remain."
+        },
+        {
+            "id": "R4-002",
+            "report_candidate": "C-002",
+            "title": "Imported-call GC leaf filtering under unsupported nested Wasm re-entry",
+            "decision": "reject",
+            "verdict": "unsupported_workflow",
+            "value": "none",
+            "producer_reachable": true,
+            "supported_input_reachable": false,
+            "technical_reasoning": "incorrect",
+            "value_reasoning": "overrated",
+            "recommended_action": "retain_backend_contract",
+            "baseline_observed": "Warpo O0 returned importedCollection=7; O3 returned importedCollection=99 under synchronous host re-entry",
+            "expected": "Warpo intentionally treats imported functions as leaf because its wasm-compiler backend does not allow nested Wasm calls. The reproducer's synchronous re-entry is outside that workflow contract.",
+            "supervision": "Read backend and host-integration assumptions before using a reference runtime as the oracle for imported-call behavior. A workflow supported by Node is not automatically supported by Warpo's intended backend. Distinguish a hidden integration restriction or documentation concern from an actionable optimization defect."
+        },
+        {
+            "id": "R4-003",
+            "report_candidate": "C-003",
+            "title": "Global GC root scanning omits managed function references",
+            "decision": "accept",
+            "verdict": "actionable_bug",
+            "value": "high",
+            "producer_reachable": true,
+            "supported_input_reachable": true,
+            "technical_reasoning": "correct",
+            "value_reasoning": "correct",
+            "recommended_action": "fix",
+            "baseline_observed": "The original O0 reproducer preserved the captured value 7; O3 lost the global closure root and observed replacement state instead",
+            "expected": "A global reference must keep its dynamically allocated function object and captured environment alive across collection, so the closure continues to return 7.",
+            "supervision": "Reward root-coverage findings across producer and optimization boundaries. Function-reference types carry a signature rather than a class reference, but they are managed. A class-only global visitor omits these roots; immutable-global temporary-root removal exposes the omission in the original O3 case. Minimize around the missing global root rather than requiring an optimization-level mismatch."
+        },
+        {
+            "id": "R4-005",
+            "report_candidate": "C-005",
+            "title": "Set-only closure lowering rejects a frontend-produced zero environment",
+            "decision": "accept",
+            "verdict": "actionable_bug",
+            "value": "high",
+            "producer_reachable": true,
+            "supported_input_reachable": true,
+            "technical_reasoning": "correct",
+            "value_reasoning": "correct",
+            "recommended_action": "fix",
+            "baseline_observed": "Native O0 and O3 compilation exited 134 at SetClosureEnvRemover's load-only operand assertion",
+            "expected": "Valid source with a dead captured child must compile successfully; its direct call may legitimately produce setClosureEnv(i32.const 0), and the exported function returns 42.",
+            "issue_url": "https://github.com/wasm-ecosystem/warpo/issues/671",
+            "supervision": "A compiler assertion is high value when ordinary supported source reaches a legitimate frontend-produced operand shape that the pass fails to handle. Do not downgrade it merely because the symptom is an assertion. Check constants and other producer alternatives instead of assuming every closure environment setter receives a load."
+        }
+    ]
+}
